@@ -1,4 +1,4 @@
-# ======================================================
+﻿# ======================================================
 # redis-exporter ServiceMonitor
 # namespace: monitoring
 # exporter 위치: safespot-cache (Redis와 함께 배치)

@@ -1,4 +1,4 @@
-# ======================================================
+﻿# ======================================================
 # safespot-jvm Dashboard ConfigMap
 # 대상: application, worker namespace Spring Boot JVM 메트릭
 # PDF 원본 dashboard JSON 기준으로 작성

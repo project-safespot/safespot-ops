@@ -1,4 +1,4 @@
-# ======================================================
+﻿# ======================================================
 # safespot-redis Dashboard ConfigMap
 # 대상: safespot-cache namespace Redis 현황
 # Bitnami 내장 redis-exporter 메트릭 기준

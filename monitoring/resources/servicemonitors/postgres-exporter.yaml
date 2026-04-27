@@ -1,4 +1,4 @@
-# ======================================================
+﻿# ======================================================
 # postgres-exporter ServiceMonitor
 # namespace: monitoring
 # exporter 위치: safespot-db (PostgreSQL과 함께 배치)
