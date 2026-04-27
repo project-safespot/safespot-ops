@@ -9,7 +9,7 @@ spec:
   description: "SafeSpot 로컬 테스트 환경 — 전체 애플리케이션 프로젝트"
 
   sourceRepos:
-    - https://github.com/project-safespot/safespot-k8s.git
+    - https://github.com/project-safespot/safespot-ops.git
     - https://charts.bitnami.com/bitnami
     - https://prometheus-community.github.io/helm-charts
     - https://helm.localstack.cloud

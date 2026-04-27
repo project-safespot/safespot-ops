@@ -1,0 +1,6 @@
+apiVersion: v2
+name: safespot
+description: SafeSpot 로컬 Kubernetes 테스트용 Helm chart
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

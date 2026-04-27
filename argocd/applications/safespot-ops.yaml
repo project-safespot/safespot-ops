@@ -1,24 +1,27 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: api-core
+  name: safespot-ops
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: safespot
-    tier: api
+    app.kubernetes.io/component: ops
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: safespot
 
   source:
-    repoURL: https://github.com/project-safespot/safespot-k8s.git
+    repoURL: https://github.com/project-safespot/safespot-ops.git
     targetRevision: main
-    path: apps/api-core
+    path: charts/safespot-ops
+    helm:
+      valueFiles:
+        - values-dev.yaml
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: application
+    namespace: monitoring
 
   syncPolicy:
     automated:
@@ -28,16 +31,10 @@ spec:
       - CreateNamespace=true
       - Validate=true
       - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
     retry:
-      limit: 3
+      limit: 5
       backoff:
-        duration: 10s
+        duration: 15s
         factor: 2
-        maxDuration: 3m
-
-  ignoreDifferences:
-    - group: apps
-      kind: Deployment
-      jsonPointers:
-        - /spec/replicas
-        
+        maxDuration: 5m
