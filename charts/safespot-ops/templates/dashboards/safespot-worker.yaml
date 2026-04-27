@@ -70,7 +70,7 @@ data:
           "targets": [
             {
               "expr": "jvm_memory_used_bytes{area=\"heap\", namespace=\"worker\"} / jvm_memory_max_bytes{area=\"heap\", namespace=\"worker\"}",
-              "legendFormat": "{{ pod }} heap"
+              "legendFormat": "{{`{{ pod }}`}}"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "percentunit" } }
