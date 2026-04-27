@@ -10,7 +10,6 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: safespot
-
   source:
     repoURL: https://github.com/project-safespot/safespot-ops.git
     targetRevision: main
@@ -18,11 +17,9 @@ spec:
     helm:
       valueFiles:
         - values-dev.yaml
-
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
-
   syncPolicy:
     automated:
       prune: true

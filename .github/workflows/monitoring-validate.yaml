@@ -1,17 +1,3 @@
-# ======================================================
-# monitoring-validate.yaml
-# (기존 파일명: monitoring-deploy.yaml → 역할에 맞게 변경)
-#
-# 역할: 배포가 아닌 검증 전용 workflow
-#   - monitoring/ 디렉토리 변경 시 YAML 문법 검사
-#   - PrometheusRule PromQL 문법 검사
-#   - 실제 배포는 Argo CD가 Git sync로 처리
-#
-# 수정 이력:
-# 1. 파일명 monitoring-deploy.yaml → monitoring-validate.yaml
-# 2. workflow name: "Monitoring Deploy" → "Monitoring Validate"
-# 3. job 설명 주석 명확화 (배포 아님, 검증 전용임을 명시)
-# ======================================================
 name: Monitoring Validate
 
 on:
@@ -19,13 +5,24 @@ on:
     branches:
       - main
     paths:
-      - 'monitoring/**'
+      - "monitoring/**"
+      - "charts/safespot-ops/**"
+      - "argocd/**"
+      - ".github/workflows/monitoring-validate.yaml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "monitoring/**"
+      - "charts/safespot-ops/**"
+      - "argocd/**"
+      - ".github/workflows/monitoring-validate.yaml"
 
 jobs:
-  # ── 1. YAML 유효성 검사 ───────────────────────────────────────────
-  lint:
-    name: Lint YAML
+  lint-static-yaml:
+    name: Lint Static YAML
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,26 +43,52 @@ jobs:
               min-spaces-from-content: 1
           EOF
 
-      - name: Lint monitoring YAML files
-        run: yamllint -c .yamllint.yaml monitoring/
+      - name: Lint argocd and monitoring YAML
+        run: |
+          yamllint -c .yamllint.yaml argocd/
 
-  # ── 2. PrometheusRule PromQL 문법 검사 ────────────────────────────
-  # 대상: monitoring/resources/prometheusrules/*.yaml (glob 전체)
-  # 파일 구조: monitoring/resources/prometheusrules/ 아래 모든 .yaml
-  #   - application-alerts.yaml
-  #   - postgres-alerts.yaml
-  #   - redis-alerts.yaml
-  #   - worker-alerts.yaml
-  #   - kubernetes-alerts.yaml
-  #   - sqs-local-alerts.yaml
-  #   - jvm-alerts.yaml
-  validate-rules:
-    name: Validate PrometheusRules
+          if [ -d monitoring ]; then
+            yamllint -c .yamllint.yaml monitoring/
+          fi
+
+  validate-helm-chart:
+    name: Validate Helm Chart
     runs-on: ubuntu-latest
-    needs: lint
+    needs: lint-static-yaml
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Helm lint
+        run: |
+          helm lint charts/safespot-ops \
+            -f charts/safespot-ops/values-dev.yaml
+
+      - name: Helm template
+        run: |
+          helm template safespot-ops charts/safespot-ops \
+            -f charts/safespot-ops/values-dev.yaml \
+            > rendered-ops.yaml
+
+      - name: Check rendered manifest exists
+        run: |
+          test -s rendered-ops.yaml
+
+  validate-prometheus-rules:
+    name: Validate PrometheusRules
+    runs-on: ubuntu-latest
+    needs: validate-helm-chart
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
 
       - name: Install promtool
         run: |
@@ -74,39 +97,74 @@ jobs:
           tar -xzf "prometheus-${PROM_VERSION}.linux-amd64.tar.gz"
           sudo mv "prometheus-${PROM_VERSION}.linux-amd64/promtool" /usr/local/bin/
 
-      - name: Extract & validate PromQL rules
+      - name: Render Helm manifests
+        run: |
+          helm template safespot-ops charts/safespot-ops \
+            -f charts/safespot-ops/values-dev.yaml \
+            > rendered-ops.yaml
+
+      - name: Extract and validate PrometheusRule PromQL
         run: |
           pip install -q pyyaml
-          for f in monitoring/resources/prometheusrules/*.yaml; do
-            echo "▶ Validating: $f"
-            python3 - <<PYEOF
-          import yaml, subprocess, sys
-          with open("$f") as fh:
-              doc = yaml.safe_load(fh)
-          groups = doc.get("spec", {}).get("groups", [])
+
+          python3 <<'PYEOF'
+          import yaml
+          import subprocess
+          import sys
+
+          with open("rendered-ops.yaml", encoding="utf-8") as fh:
+              docs = list(yaml.safe_load_all(fh))
+
+          groups = []
+
+          for doc in docs:
+              if not isinstance(doc, dict):
+                  continue
+
+              if doc.get("kind") != "PrometheusRule":
+                  continue
+
+              metadata = doc.get("metadata", {})
+              name = metadata.get("name", "unknown")
+              rule_groups = doc.get("spec", {}).get("groups", [])
+
+              print(f"▶ Found PrometheusRule: {name}")
+              groups.extend(rule_groups)
+
+          if not groups:
+              print("No PrometheusRule groups found. Skipping promtool validation.")
+              sys.exit(0)
+
           rule_file = {"groups": groups}
-          with open("/tmp/rule_check.yaml", "w") as out:
-              yaml.dump(rule_file, out)
+
+          with open("/tmp/rule_check.yaml", "w", encoding="utf-8") as out:
+              yaml.safe_dump(rule_file, out, sort_keys=False)
+
           result = subprocess.run(
               ["promtool", "check", "rules", "/tmp/rule_check.yaml"],
-              capture_output=True, text=True
+              capture_output=True,
+              text=True
           )
+
           print(result.stdout)
+
           if result.returncode != 0:
               print(result.stderr)
               sys.exit(1)
           PYEOF
-          done
 
-  # ── 3. 검증 완료 알림 ─────────────────────────────────────────────
-  # 이 workflow는 검증만 수행합니다.
-  # 실제 배포는 Argo CD가 main 브랜치 변경을 감지하여 자동 sync합니다.
   notify:
-    name: Notify validation success
+    name: Notify Validation Success
     runs-on: ubuntu-latest
-    needs: validate-rules
+    needs:
+      - lint-static-yaml
+      - validate-helm-chart
+      - validate-prometheus-rules
+
     steps:
       - name: Print result
         run: |
-          echo "✅ monitoring/ lint & rule validation passed."
-          echo "Argo CD will auto-sync the monitoring application."
+          echo "✅ Static YAML lint passed."
+          echo "✅ Helm chart validation passed."
+          echo "✅ PrometheusRule validation passed."
+          echo "Argo CD will sync safespot-ops from charts/safespot-ops."
