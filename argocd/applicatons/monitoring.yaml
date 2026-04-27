@@ -65,3 +65,4 @@ spec:
       name: monitoring-grafana
       jsonPointers:
         - /data
+        
