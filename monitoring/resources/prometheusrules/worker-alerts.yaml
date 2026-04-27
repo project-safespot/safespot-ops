@@ -1,0 +1,39 @@
+# ======================================================
+# worker-alerts.yaml
+# 대상: worker namespace (async-worker)
+# ======================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: safespot-worker-alerts
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: safespot.worker.availability
+      interval: 15s
+      rules:
+        - alert: WorkerPodNotReady
+          expr: |
+            kube_pod_status_ready{condition="true", namespace="worker"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            env: dev
+            namespace: worker
+          annotations:
+            summary: "Worker pod not ready ({{ $labels.pod }})"
+            description: "Pod {{ $labels.pod }} in namespace worker has been not ready for 5 minutes."
+
+        - alert: WorkerPodCrashLooping
+          expr: |
+            rate(kube_pod_container_status_restarts_total{namespace="worker"}[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+            env: dev
+            namespace: worker
+          annotations:
+            summary: "Worker pod crash looping ({{ $labels.pod }})"
+            description: "Worker pod {{ $labels.pod }} is restarting frequently."

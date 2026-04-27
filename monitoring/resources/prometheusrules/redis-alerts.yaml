@@ -1,0 +1,65 @@
+# ======================================================
+# redis-alerts.yaml
+# 대상: safespot-cache namespace
+# Bitnami 내장 redis-exporter 메트릭 기준
+# 수정:
+# [FIX] RedisHighMemoryUsage PromQL →
+#       나눗셈 전 clamp_min으로 분모 0 방지
+#       (기존 and 조건은 label matching 불일치 위험 있음)
+# ======================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: safespot-redis-alerts
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: safespot.redis
+      interval: 15s
+      rules:
+        # ── redis 인스턴스 다운 ────────────────────────────────────
+        - alert: RedisDown
+          expr: redis_up{namespace="safespot-cache"} == 0
+          for: 3m
+          labels:
+            severity: critical
+            env: dev
+            namespace: safespot-cache
+          annotations:
+            summary: "Redis is down"
+            description: "Redis instance in safespot-cache is not responding."
+
+        # ── 메모리 사용률 > 80% ────────────────────────────────────
+        # [FIX] 기존: 나눗셈 후 and redis_memory_max_bytes > 0
+        #       → label set 불일치로 and 조건이 의도와 다르게 동작할 수 있음
+        # [FIX] 수정: clamp_min(분모, 1)로 0 나눗셈 자체를 방지
+        #       → redis_memory_max_bytes = 0 (maxmemory 미설정) 시 알람 미발생
+        - alert: RedisHighMemoryUsage
+          expr: |
+            (
+              redis_memory_used_bytes{namespace="safespot-cache"}
+              /
+              clamp_min(redis_memory_max_bytes{namespace="safespot-cache"}, 1)
+            ) > 0.80
+          for: 5m
+          labels:
+            severity: warning
+            env: dev
+            namespace: safespot-cache
+          annotations:
+            summary: "Redis memory usage high"
+            description: "Redis memory usage exceeds 80% of max memory."
+
+        # ── 연결 클라이언트 수 > 100 ──────────────────────────────
+        - alert: RedisHighConnections
+          expr: redis_connected_clients{namespace="safespot-cache"} > 100
+          for: 5m
+          labels:
+            severity: warning
+            env: dev
+            namespace: safespot-cache
+          annotations:
+            summary: "Redis connected clients high"
+            description: "Redis has more than 100 connected clients."

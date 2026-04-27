@@ -1,0 +1,37 @@
+# ======================================================
+# sqs-local-alerts.yaml
+# 대상: LocalStack SQS (로컬 테스트 전용)
+# 주의: LocalStack 무료 플랜은 CloudWatch SQS 메트릭 미지원
+#   → ApproximateNumberOfMessagesVisible 등 표준 SQS 메트릭 없음
+#   → check-sqs-local.sh 스크립트로 직접 큐 상태 점검
+#   → 아래 규칙은 LocalStack이 노출하는 기본 메트릭 기준으로만 작성
+# 운영 전환 시: AWS CloudWatch Exporter 또는 KEDA SQS Scaler로 교체
+# ======================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: safespot-sqs-local-alerts
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: safespot.sqs.local
+      interval: 30s
+      rules:
+        # LocalStack 자체가 응답하지 않는 경우
+        - alert: LocalStackDown
+          expr: |
+            kube_pod_status_ready{
+              condition="true",
+              namespace="safespot-localstack",
+              pod=~"localstack.*"
+            } == 0
+          for: 3m
+          labels:
+            severity: critical
+            env: dev
+            namespace: safespot-localstack
+          annotations:
+            summary: "LocalStack is down"
+            description: "LocalStack pod is not ready. SQS and Lambda emulation unavailable."
