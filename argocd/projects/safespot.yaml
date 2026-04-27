@@ -58,4 +58,3 @@ spec:
       policies:
         - p, proj:safespot:ci, applications, get, safespot/*, allow
         - p, proj:safespot:ci, applications, sync, safespot/*, allow
-        
