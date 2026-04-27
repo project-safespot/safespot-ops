@@ -44,7 +44,7 @@ data:
           "targets": [
             {
               "expr": "sum by(service) (rate(http_server_requests_seconds_count{namespace=\"application\", service=~\"$service\"}[1m]))",
-              "legendFormat": "{{ service }}"
+              "legendFormat": "{{`{{ service }}`}}"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "reqps" } }
@@ -58,7 +58,7 @@ data:
           "targets": [
             {
               "expr": "sum by(service) (rate(http_server_requests_seconds_count{namespace=\"application\", service=~\"$service\", status=~\"5..\"}[1m]))",
-              "legendFormat": "{{ service }} 5xx"
+              "legendFormat": "{{`{{ service }}`}} 5xx"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "reqps" } }
@@ -72,7 +72,7 @@ data:
           "targets": [
             {
               "expr": "histogram_quantile(0.99, sum by(service, le) (rate(http_server_requests_seconds_bucket{namespace=\"application\", service=~\"$service\"}[1m])))",
-              "legendFormat": "{{ service }} p99"
+              "legendFormat": "{{`{{ service }}`}} p99"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "s" } }
@@ -86,7 +86,7 @@ data:
           "targets": [
             {
               "expr": "histogram_quantile(0.50, sum by(service, le) (rate(http_server_requests_seconds_bucket{namespace=\"application\", service=~\"$service\"}[1m])))",
-              "legendFormat": "{{ service }} p50"
+              "legendFormat": "{{`{{ service }}`}} p50"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "s" } }
