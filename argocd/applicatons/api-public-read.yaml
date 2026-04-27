@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: api-public-read
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: safespot
+    tier: api
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: safespot
+
+  source:
+    repoURL: https://github.com/project-safespot/safespot-k8s.git
+    targetRevision: main
+    path: apps/api-public-read
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: application
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - Validate=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

@@ -1,0 +1,108 @@
+# ======================================================
+# worker-deploy.yaml
+# 대상: async-worker
+# 수정 이력:
+# 1. paths를 src/Dockerfile 중심으로 제한
+# 2. latest 태그 제거
+# 3. commit message에 [skip ci] 추가
+# 4. docker/setup-buildx-action 추가
+# 5. git diff --cached --quiet로 안전한 no-op 처리
+# 6. [FIX] concurrency 그룹 추가
+#          api-deploy, ingestion-deploy와 동일 그룹 → manifest push 충돌 방지
+# 7. [FIX] git pull --rebase 추가 → 다른 workflow와 충돌 방지
+# 8. [FIX] sed 패턴 검증 step 추가 → silent failure 방지
+# ======================================================
+name: Worker Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/async-worker/src/**'
+      - 'apps/async-worker/Dockerfile'
+
+env:
+  REGISTRY: ghcr.io
+  ORG: ${{ github.repository_owner }}
+
+# ── [FIX] manifest push 충돌 방지 ──────────────────────────────────
+# api-deploy, ingestion-deploy와 동일한 concurrency 그룹 사용
+# → 동시에 여러 workflow가 manifest push할 때 순차 처리 보장
+concurrency:
+  group: manifest-update-${{ github.ref }}
+  cancel-in-progress: false  # 진행 중인 manifest 업데이트는 취소하지 않음
+
+jobs:
+  build-async-worker:
+    name: Build & Push async-worker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push async-worker
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/async-worker
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.ORG }}/async-worker:${{ env.IMAGE_TAG }}
+
+      # ── [FIX] sed 패턴 사전 검증 ──────────────────────────────────
+      # deployment.yaml의 image 필드가 sed 패턴과 매칭되는지 사전 확인
+      # 매칭 실패 시 치환이 silent하게 실패하는 문제 방지
+      # 전제 조건: deployment.yaml의 image 값이 아래 형식이어야 함
+      #   image: ghcr.io/<org>/async-worker:<tag>
+      - name: Verify sed pattern matches async-worker deployment
+        run: |
+          TARGET_FILE="apps/async-worker/deployment.yaml"
+          PATTERN="image: .*async-worker:.*"
+          COUNT=$(grep -c "$PATTERN" "$TARGET_FILE" || true)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "❌ [ERROR] No image tag match found in: $TARGET_FILE"
+            echo "   Expected pattern: $PATTERN"
+            echo "   Actual image lines in file:"
+            grep "image:" "$TARGET_FILE" || echo "   (no image: field found)"
+            echo ""
+            echo "::error::deployment.yaml의 image 필드가 sed 패턴과 일치하지 않습니다."
+            echo "image: ghcr.io/<org>/async-worker:<tag> 형식인지 확인하세요."
+            exit 1
+          else
+            echo "✅ Pattern matched ($COUNT line(s)) in: $TARGET_FILE"
+          fi
+
+      - name: Update async-worker deployment image tag
+        run: |
+          sed -i \
+            "s|image: .*async-worker:.*|image: ${{ env.REGISTRY }}/${{ env.ORG }}/async-worker:${{ env.IMAGE_TAG }}|g" \
+            apps/async-worker/deployment.yaml
+
+      # [FIX] git pull --rebase → 다른 workflow(api-deploy 등)가 먼저 push한 경우 대비
+      # [skip ci] → commit/push가 다시 workflow를 트리거하지 않음
+      - name: Commit & push manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
+          git add apps/async-worker/deployment.yaml
+          git diff --cached --quiet && echo "nothing to commit" && exit 0
+          git commit -m "chore(async-worker): update image tag to ${{ env.IMAGE_TAG }} [skip ci]"
+          git push

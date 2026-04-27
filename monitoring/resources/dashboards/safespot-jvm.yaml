@@ -1,0 +1,211 @@
+# ======================================================
+# safespot-jvm Dashboard ConfigMap
+# 대상: application, worker namespace Spring Boot JVM 메트릭
+# PDF 원본 dashboard JSON 기준으로 작성
+# ======================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-safespot-jvm
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  safespot-jvm.json: |
+    {
+      "title": "SafeSpot JVM",
+      "uid": "safespot-jvm",
+      "schemaVersion": 38,
+      "version": 2,
+      "refresh": "30s",
+      "tags": ["safespot", "jvm"],
+      "time": { "from": "now-1h", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "type": "datasource",
+            "pluginId": "prometheus",
+            "label": "Datasource"
+          },
+          {
+            "name": "service",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "${datasource}" },
+            "query": "label_values(jvm_memory_used_bytes{namespace=~\"application|worker\"}, service)",
+            "refresh": 2,
+            "multi": true,
+            "includeAll": true,
+            "label": "Service"
+          }
+        ]
+      },
+      "annotations": { "list": [] },
+      "panels": [
+        {
+          "type": "row",
+          "title": "🧠 Memory",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "id": 0
+        },
+        {
+          "id": 1,
+          "title": "Heap 사용량 (bytes)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [
+            {
+              "expr": "jvm_memory_used_bytes{area=\"heap\", service=~\"$service\"}",
+              "legendFormat": "{{ service }} used"
+            },
+            {
+              "expr": "jvm_memory_max_bytes{area=\"heap\", service=~\"$service\"}",
+              "legendFormat": "{{ service }} max"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "id": 2,
+          "title": "Non-Heap 사용량 (bytes)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [
+            {
+              "expr": "jvm_memory_used_bytes{area=\"nonheap\", service=~\"$service\"}",
+              "legendFormat": "{{ service }} non-heap used"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "type": "row",
+          "title": "♻️ GC",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+          "id": 10
+        },
+        {
+          "id": 11,
+          "title": "GC 횟수 (회/s)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [
+            {
+              "expr": "rate(jvm_gc_pause_seconds_count{service=~\"$service\"}[1m])",
+              "legendFormat": "{{ service }} {{ action }} {{ cause }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+        {
+          "id": 12,
+          "title": "GC 평균 pause 시간 (s)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [
+            {
+              "expr": "rate(jvm_gc_pause_seconds_sum{service=~\"$service\"}[1m]) / rate(jvm_gc_pause_seconds_count{service=~\"$service\"}[1m])",
+              "legendFormat": "{{ service }} avg pause"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 13,
+          "title": "메모리 할당 속도 (bytes/s)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [
+            {
+              "expr": "rate(jvm_gc_memory_allocated_bytes_total{service=~\"$service\"}[1m])",
+              "legendFormat": "{{ service }} allocation rate"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "Bps" } }
+        },
+        {
+          "type": "row",
+          "title": "🧵 Threads",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+          "id": 20
+        },
+        {
+          "id": 21,
+          "title": "스레드 상태별 개수",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [
+            {
+              "expr": "jvm_threads_states_threads{service=~\"$service\"}",
+              "legendFormat": "{{ service }} {{ state }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        },
+        {
+          "id": 22,
+          "title": "활성 스레드 수 (live)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [
+            {
+              "expr": "jvm_threads_live_threads{service=~\"$service\"}",
+              "legendFormat": "{{ service }} live"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 200 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "type": "row",
+          "title": "⏱️ Process",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+          "id": 30
+        },
+        {
+          "id": 31,
+          "title": "Process Uptime (s)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [
+            {
+              "expr": "process_uptime_seconds{service=~\"$service\"}",
+              "legendFormat": "{{ service }} uptime"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 32,
+          "title": "Process Start Time 변경 감지",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "targets": [
+            {
+              "expr": "changes(process_start_time_seconds{service=~\"$service\"}[5m])",
+              "legendFormat": "{{ service }} restarts (5m)"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        }
+      ]
+    }

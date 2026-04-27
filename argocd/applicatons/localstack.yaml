@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: localstack
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: safespot
+    tier: async
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: safespot
+
+  sources:
+    - repoURL: https://helm.localstack.cloud
+      chart: localstack
+      targetRevision: "0.6.12"
+      helm:
+        valueFiles:
+          - $values/async/localstack/values.yaml
+    - repoURL: https://github.com/project-safespot/safespot-k8s.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: safespot-localstack
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - Validate=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

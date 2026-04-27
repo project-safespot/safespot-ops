@@ -1,0 +1,183 @@
+# ======================================================
+# safespot-overview Dashboard ConfigMap
+# label: grafana_dashboard: "1" → Grafana sidecar가 자동 감지 후 로드
+# namespace: monitoring
+#
+# gridPos 수정:
+#   기존: 패널 6개를 x: 0,4,8,12,16,20 w:4 로 1행에 배치 → 화면 넓이에 따라 줄바꿈 불안정
+#   수정: 2행으로 분리 (각 행 3개, w:8) → Grafana 24컬럼 grid 기준 안정적
+#     1행 (y:0): api-core, api-public-read, async-worker
+#     2행 (y:4): Redis, PostgreSQL, LocalStack
+# ======================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-safespot-overview
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  safespot-overview.json: |
+    {
+      "title": "SafeSpot Overview",
+      "uid": "safespot-overview",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "30s",
+      "tags": ["safespot", "overview"],
+      "time": { "from": "now-1h", "to": "now" },
+      "templating": { "list": [] },
+      "annotations": { "list": [] },
+      "panels": [
+        {
+          "id": 1,
+          "title": "api-core Pods Ready",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(kube_pod_status_ready{condition=\"true\", namespace=\"application\", pod=~\"api-core.*\"})",
+              "legendFormat": "ready"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "api-public-read Pods Ready",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(kube_pod_status_ready{condition=\"true\", namespace=\"application\", pod=~\"api-public-read.*\"})",
+              "legendFormat": "ready"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "async-worker Pods Ready",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(kube_pod_status_ready{condition=\"true\", namespace=\"worker\", pod=~\"async-worker.*\"})",
+              "legendFormat": "ready"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "Redis Up",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 0, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "redis_up{namespace=\"safespot-cache\"}",
+              "legendFormat": "up"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 5,
+          "title": "PostgreSQL Up",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 8, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "pg_up{namespace=\"safespot-db\"}",
+              "legendFormat": "up"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 6,
+          "title": "LocalStack Up",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 16, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(kube_pod_status_ready{condition=\"true\", namespace=\"safespot-localstack\", pod=~\"localstack.*\"})",
+              "legendFormat": "up"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }

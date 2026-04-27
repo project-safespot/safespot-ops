@@ -1,0 +1,112 @@
+# ======================================================
+# monitoring-validate.yaml
+# (기존 파일명: monitoring-deploy.yaml → 역할에 맞게 변경)
+#
+# 역할: 배포가 아닌 검증 전용 workflow
+#   - monitoring/ 디렉토리 변경 시 YAML 문법 검사
+#   - PrometheusRule PromQL 문법 검사
+#   - 실제 배포는 Argo CD가 Git sync로 처리
+#
+# 수정 이력:
+# 1. 파일명 monitoring-deploy.yaml → monitoring-validate.yaml
+# 2. workflow name: "Monitoring Deploy" → "Monitoring Validate"
+# 3. job 설명 주석 명확화 (배포 아님, 검증 전용임을 명시)
+# ======================================================
+name: Monitoring Validate
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'monitoring/**'
+
+jobs:
+  # ── 1. YAML 유효성 검사 ───────────────────────────────────────────
+  lint:
+    name: Lint YAML
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip install --break-system-packages yamllint
+
+      - name: Write yamllint config
+        run: |
+          cat <<'EOF' > .yamllint.yaml
+          extends: default
+          rules:
+            line-length:
+              max: 200
+            truthy:
+              allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+            comments:
+              min-spaces-from-content: 1
+          EOF
+
+      - name: Lint monitoring YAML files
+        run: yamllint -c .yamllint.yaml monitoring/
+
+  # ── 2. PrometheusRule PromQL 문법 검사 ────────────────────────────
+  # 대상: monitoring/resources/prometheusrules/*.yaml (glob 전체)
+  # 파일 구조: monitoring/resources/prometheusrules/ 아래 모든 .yaml
+  #   - application-alerts.yaml
+  #   - postgres-alerts.yaml
+  #   - redis-alerts.yaml
+  #   - worker-alerts.yaml
+  #   - kubernetes-alerts.yaml
+  #   - sqs-local-alerts.yaml
+  #   - jvm-alerts.yaml
+  validate-rules:
+    name: Validate PrometheusRules
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install promtool
+        run: |
+          PROM_VERSION="2.51.0"
+          wget -q "https://github.com/prometheus/prometheus/releases/download/v${PROM_VERSION}/prometheus-${PROM_VERSION}.linux-amd64.tar.gz"
+          tar -xzf "prometheus-${PROM_VERSION}.linux-amd64.tar.gz"
+          sudo mv "prometheus-${PROM_VERSION}.linux-amd64/promtool" /usr/local/bin/
+
+      - name: Extract & validate PromQL rules
+        run: |
+          pip install -q pyyaml
+          for f in monitoring/resources/prometheusrules/*.yaml; do
+            echo "▶ Validating: $f"
+            python3 - <<PYEOF
+          import yaml, subprocess, sys
+          with open("$f") as fh:
+              doc = yaml.safe_load(fh)
+          groups = doc.get("spec", {}).get("groups", [])
+          rule_file = {"groups": groups}
+          with open("/tmp/rule_check.yaml", "w") as out:
+              yaml.dump(rule_file, out)
+          result = subprocess.run(
+              ["promtool", "check", "rules", "/tmp/rule_check.yaml"],
+              capture_output=True, text=True
+          )
+          print(result.stdout)
+          if result.returncode != 0:
+              print(result.stderr)
+              sys.exit(1)
+          PYEOF
+          done
+
+  # ── 3. 검증 완료 알림 ─────────────────────────────────────────────
+  # 이 workflow는 검증만 수행합니다.
+  # 실제 배포는 Argo CD가 main 브랜치 변경을 감지하여 자동 sync합니다.
+  notify:
+    name: Notify validation success
+    runs-on: ubuntu-latest
+    needs: validate-rules
+    steps:
+      - name: Print result
+        run: |
+          echo "✅ monitoring/ lint & rule validation passed."
+          echo "Argo CD will auto-sync the monitoring application."

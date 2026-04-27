@@ -1,0 +1,224 @@
+# ======================================================
+# api-deploy.yaml
+# 대상: api-core, api-public-read
+# 트리거: src/**, Dockerfile 변경 시만 실행
+#         (deployment.yaml 변경은 트리거 제외)
+# 수정 이력:
+# 1. paths를 src/Dockerfile 중심으로 제한 → 재트리거 차단
+# 2. dorny/paths-filter로 job별 실행 분기
+# 3. latest 태그 제거 → commit SHA 태그만 push
+# 4. commit message에 [skip ci] 추가
+# 5. docker/setup-buildx-action 추가
+# 6. concurrency 그룹 추가 → 동시 manifest push 충돌 방지
+# 7. api-core, api-public-read commit 전 git pull --rebase 추가
+# 8. [FIX] api-public-read는 build-api-core 이후 실행
+#          빌드 + manifest push 모두 직렬화됨 (주석 정정)
+# 9. [FIX] sed 패턴 검증 step 추가
+#          api-core, api-public-read 모두 치환 전 매칭 확인
+# ======================================================
+name: API Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/api-core/src/**'
+      - 'apps/api-core/Dockerfile'
+      - 'apps/api-public-read/src/**'
+      - 'apps/api-public-read/Dockerfile'
+
+env:
+  REGISTRY: ghcr.io
+  ORG: ${{ github.repository_owner }}
+
+# ── [FIX] manifest push 충돌 방지 ──────────────────────────────────
+# api-core와 api-public-read가 동시에 변경될 때
+# build-api-public-read가 build-api-core를 needs로 기다리므로
+# 빌드 및 manifest push 모두 실질적으로 직렬화됨
+# (기존 주석 "병렬 빌드 + 순차 manifest"는 실제 동작과 달랐으므로 정정)
+concurrency:
+  group: manifest-update-${{ github.ref }}
+  cancel-in-progress: false  # 진행 중인 manifest 업데이트는 취소하지 않음
+
+jobs:
+  # ── 변경된 서비스 감지 ────────────────────────────────────────────
+  detect-changes:
+    name: Detect changed services
+    runs-on: ubuntu-latest
+    outputs:
+      api-core: ${{ steps.filter.outputs.api-core }}
+      api-public-read: ${{ steps.filter.outputs.api-public-read }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # head_commit.modified 대신 dorny/paths-filter 사용
+      # 여러 커밋이 한 번에 push될 때도 누락 없이 감지
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api-core:
+              - 'apps/api-core/src/**'
+              - 'apps/api-core/Dockerfile'
+            api-public-read:
+              - 'apps/api-public-read/src/**'
+              - 'apps/api-public-read/Dockerfile'
+
+  # ── api-core ──────────────────────────────────────────────────────
+  build-api-core:
+    name: Build & Push api-core
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.api-core == 'true'
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # latest 태그 제거: commit SHA 태그만 push
+      - name: Build & push api-core
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/api-core
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.ORG }}/api-core:${{ env.IMAGE_TAG }}
+
+      # ── [FIX] sed 패턴 사전 검증 ──────────────────────────────────
+      # deployment.yaml의 image 필드가 sed 패턴과 매칭되는지 사전 확인
+      # 매칭 실패 시 치환이 silent하게 실패하는 문제 방지
+      # 전제 조건: deployment.yaml의 image 값이 아래 형식이어야 함
+      #   image: ghcr.io/<org>/api-core:<tag>
+      - name: Verify sed pattern matches api-core deployment
+        run: |
+          TARGET_FILE="apps/api-core/deployment.yaml"
+          PATTERN="image: .*api-core:.*"
+          COUNT=$(grep -c "$PATTERN" "$TARGET_FILE" || true)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "❌ [ERROR] No image tag match found in: $TARGET_FILE"
+            echo "   Expected pattern: $PATTERN"
+            echo "   Actual image lines in file:"
+            grep "image:" "$TARGET_FILE" || echo "   (no image: field found)"
+            echo ""
+            echo "::error::deployment.yaml의 image 필드가 sed 패턴과 일치하지 않습니다."
+            echo "image: ghcr.io/<org>/api-core:<tag> 형식인지 확인하세요."
+            exit 1
+          else
+            echo "✅ Pattern matched ($COUNT line(s)) in: $TARGET_FILE"
+          fi
+
+      - name: Update api-core deployment image tag
+        run: |
+          sed -i \
+            "s|image: .*api-core:.*|image: ${{ env.REGISTRY }}/${{ env.ORG }}/api-core:${{ env.IMAGE_TAG }}|g" \
+            apps/api-core/deployment.yaml
+
+      # [FIX] git pull --rebase → 다른 workflow가 먼저 push한 경우 대비
+      # [skip ci] → commit/push가 다시 workflow를 트리거하지 않음
+      - name: Commit & push manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
+          git add apps/api-core/deployment.yaml
+          git diff --cached --quiet && echo "nothing to commit" && exit 0
+          git commit -m "chore(api-core): update image tag to ${{ env.IMAGE_TAG }} [skip ci]"
+          git push
+
+  # ── api-public-read ───────────────────────────────────────────────
+  build-api-public-read:
+    name: Build & Push api-public-read
+    runs-on: ubuntu-latest
+    # [FIX] 주석 정정:
+    #   needs: [detect-changes, build-api-core] 가 올바른 구조
+    #   → 빌드와 manifest push 모두 api-core 완료 후 실행 (실질적 직렬화)
+    #   api-core가 skip된 경우(outputs.api-core != 'true')에도
+    #   api-public-read는 독립 실행 가능 (skipped 조건 허용)
+    needs: [detect-changes, build-api-core]
+    if: |
+      always() &&
+      needs.detect-changes.outputs.api-public-read == 'true' &&
+      (needs.build-api-core.result == 'success' || needs.build-api-core.result == 'skipped')
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push api-public-read
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/api-public-read
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.ORG }}/api-public-read:${{ env.IMAGE_TAG }}
+
+      # ── [FIX] sed 패턴 사전 검증 ──────────────────────────────────
+      - name: Verify sed pattern matches api-public-read deployment
+        run: |
+          TARGET_FILE="apps/api-public-read/deployment.yaml"
+          PATTERN="image: .*api-public-read:.*"
+          COUNT=$(grep -c "$PATTERN" "$TARGET_FILE" || true)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "❌ [ERROR] No image tag match found in: $TARGET_FILE"
+            echo "   Expected pattern: $PATTERN"
+            echo "   Actual image lines in file:"
+            grep "image:" "$TARGET_FILE" || echo "   (no image: field found)"
+            echo ""
+            echo "::error::deployment.yaml의 image 필드가 sed 패턴과 일치하지 않습니다."
+            echo "image: ghcr.io/<org>/api-public-read:<tag> 형식인지 확인하세요."
+            exit 1
+          else
+            echo "✅ Pattern matched ($COUNT line(s)) in: $TARGET_FILE"
+          fi
+
+      - name: Update api-public-read deployment image tag
+        run: |
+          sed -i \
+            "s|image: .*api-public-read:.*|image: ${{ env.REGISTRY }}/${{ env.ORG }}/api-public-read:${{ env.IMAGE_TAG }}|g" \
+            apps/api-public-read/deployment.yaml
+
+      # [FIX] git pull --rebase → api-core commit 이후 fast-forward 보장
+      - name: Commit & push manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
+          git add apps/api-public-read/deployment.yaml
+          git diff --cached --quiet && echo "nothing to commit" && exit 0
+          git commit -m "chore(api-public-read): update image tag to ${{ env.IMAGE_TAG }} [skip ci]"
+          git push

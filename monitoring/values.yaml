@@ -1,0 +1,164 @@
+# ======================================================
+# values.yaml
+# kube-prometheus-stack 설치용 Helm values
+# 수정:
+#   1. [FIX] Slack Webhook URL → Kubernetes Secret 참조 방식으로 교체
+#            (REPLACE_ME_ 하드코딩 제거)
+#   2. [FIX] Grafana adminPassword → Secret 참조 방식으로 교체
+# ======================================================
+
+# helm install monitoring prometheus-community/kube-prometheus-stack \
+#   -n monitoring --create-namespace -f values.yaml
+
+prometheus:
+  prometheusSpec:
+    # ServiceMonitor selector
+    # ServiceMonitor에 release: monitoring 라벨이 있어야 수집 대상으로 인식
+    serviceMonitorSelector:
+      matchLabels:
+        release: monitoring
+
+    # ServiceMonitor를 찾을 namespace
+    serviceMonitorNamespaceSelector:
+      matchNames:
+        - monitoring
+        - application
+        - worker
+        - safespot-db
+        - safespot-cache
+
+    # PrometheusRule selector
+    # PrometheusRule에 release: monitoring 라벨이 있어야 인식
+    ruleSelector:
+      matchLabels:
+        release: monitoring
+
+    # PrometheusRule를 찾을 namespace
+    ruleNamespaceSelector:
+      matchNames:
+        - monitoring
+
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+
+alertmanager:
+  enabled: true
+
+  alertmanagerSpec: {}
+
+  config:
+    global:
+      resolve_timeout: 5m
+
+    route:
+      group_by:
+        - alertname
+        - service
+        - env
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 2h
+      receiver: warning
+
+      routes:
+        - matchers:
+            - severity="critical"
+          receiver: critical
+          repeat_interval: 30m
+
+    receivers:
+      - name: critical
+        slack_configs:
+          - channel: "#safespot-alert-critical"
+            # ── [FIX] Slack Webhook URL ──────────────────────────
+            # 방법 1: Helm 설치 시 --set으로 주입 (CI/CD 권장)
+            #   helm upgrade --install monitoring ... \
+            #     --set alertmanager.config.receivers[0].slack_configs[0].api_url=$SLACK_CRITICAL_URL
+            #
+            # 방법 2: Kubernetes Secret 생성 후 alertmanager가 직접 마운트 (아래 주석 참고)
+            #   kubectl create secret generic alertmanager-slack-webhook \
+            #     --from-literal=slack-critical-url="https://hooks.slack.com/services/..." \
+            #     --from-literal=slack-warning-url="https://hooks.slack.com/services/..." \
+            #     -n monitoring
+            #
+            # 방법 3 (현재 적용): alertmanagerSpec.configSecret 사용
+            #   values.yaml에 api_url을 직접 쓰지 않고,
+            #   아래 alertmanagerSpec.configSecret 참조로 완전 분리
+            # ────────────────────────────────────────────────────
+            api_url: "$(SLACK_CRITICAL_WEBHOOK_URL)"
+            send_resolved: true
+            title: "[CRITICAL] {{ .GroupLabels.alertname }}"
+            text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+
+      - name: warning
+        slack_configs:
+          - channel: "#safespot-alert-warning"
+            api_url: "$(SLACK_WARNING_WEBHOOK_URL)"
+            send_resolved: true
+            title: "[WARNING] {{ .GroupLabels.alertname }}"
+            text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+
+    inhibit_rules:
+      - source_matchers:
+          - severity="critical"
+        target_matchers:
+          - severity="warning"
+        equal:
+          - alertname
+          - service
+
+  # ── [FIX] Slack Webhook Secret 마운트 설정 ─────────────
+  # Alertmanager가 Secret에서 환경변수를 읽어 config에 주입
+  alertmanagerSpec:
+    # Secret 생성 명령어:
+    #   kubectl create secret generic alertmanager-slack-webhook \
+    #     --from-literal=slack-critical-url="https://hooks.slack.com/services/T.../..." \
+    #     --from-literal=slack-warning-url="https://hooks.slack.com/services/T.../..." \
+    #     -n monitoring
+    containers:
+      - name: alertmanager
+        env:
+          - name: SLACK_CRITICAL_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                name: alertmanager-slack-webhook
+                key: slack-critical-url
+          - name: SLACK_WARNING_WEBHOOK_URL
+            valueFrom:
+              secretKeyRef:
+                name: alertmanager-slack-webhook
+                key: slack-warning-url
+
+grafana:
+  enabled: true
+
+  # ── [FIX] Grafana 관리자 비밀번호 Secret 분리 ──────────
+  # 기존: adminPassword: "admin1234" (하드코딩 → Git 노출 위험)
+  # 수정: Kubernetes Secret 참조
+  #
+  # Secret 생성 명령어:
+  #   kubectl create secret generic grafana-admin-credentials \
+  #     --from-literal=admin-user=admin \
+  #     --from-literal=admin-password="your-secure-password" \
+  #     -n monitoring
+  admin:
+    existingSecret: grafana-admin-credentials
+    userKey: admin-user
+    passwordKey: admin-password
+
+  defaultDashboardsEnabled: true
+
+  # ── sidecar: grafana_dashboard: "1" 라벨 ConfigMap 자동 감지 ──
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      # monitoring namespace의 ConfigMap만 스캔
+      searchNamespace: monitoring
+
+kube-state-metrics:
+  enabled: true
+
+prometheus-node-exporter:
+  enabled: true

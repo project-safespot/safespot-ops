@@ -1,0 +1,24 @@
+# ======================================================
+# postgres-exporter ServiceMonitor
+# namespace: monitoring
+# exporter 위치: safespot-db (PostgreSQL과 함께 배치)
+# ======================================================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postgres-exporter
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - safespot-db
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-postgres-exporter
+      app.kubernetes.io/instance: postgres-exporter
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

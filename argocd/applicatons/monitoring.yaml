@@ -1,0 +1,67 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: safespot
+    tier: monitoring
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: safespot
+
+  sources:
+    # ── 1. kube-prometheus-stack Helm chart ──────────────
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: "58.7.2"
+      helm:
+        releaseName: monitoring
+        valueFiles:
+          - $values/monitoring/values.yaml
+
+    # ── 2. values 참조용 (ref 전용, path 없음) ───────────
+    - repoURL: https://github.com/project-safespot/safespot-k8s.git
+      targetRevision: main
+      ref: values
+
+    # ── 3. PrometheusRule + Dashboard ConfigMap 만 배포 ──
+    #       ServiceMonitor는 servicemonitors Application이 담당
+    - repoURL: https://github.com/project-safespot/safespot-k8s.git
+      targetRevision: main
+      directory:
+        recurse: true
+        include: '{prometheusrules/**,dashboards/**}'
+      path: monitoring/resources
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - Validate=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m
+
+  ignoreDifferences:
+    - group: monitoring.coreos.com
+      kind: Prometheus
+      jsonPointers:
+        - /spec/replicas
+    - group: ""
+      kind: Secret
+      name: monitoring-grafana
+      jsonPointers:
+        - /data

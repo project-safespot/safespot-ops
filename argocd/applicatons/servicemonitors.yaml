@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: servicemonitors
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: safespot
+    tier: monitoring
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: safespot
+
+  source:
+    repoURL: https://github.com/project-safespot/safespot-k8s.git
+    targetRevision: main
+    path: monitoring/resources/servicemonitors
+
+  # destination.namespace는 각 yaml의 metadata.namespace가 우선 적용됨
+  # (api-core → application, async-worker → worker, exporter → monitoring)
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - Validate=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

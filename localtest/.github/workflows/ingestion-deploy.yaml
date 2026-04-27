@@ -1,0 +1,134 @@
+# ======================================================
+# ingestion-deploy.yaml
+# 대상: external-ingestion (Deployment + CronJob 3종)
+# 수정:
+#   1. paths를 src/Dockerfile 중심으로 제한
+#   2. latest 태그 제거
+#   3. commit message에 [skip ci] 추가
+#   4. docker/setup-buildx-action 추가
+#   5. git diff --cached --quiet로 안전한 no-op 처리
+#   6. [FIX] sed 패턴 검증 step 추가
+#            → CronJob YAML 구조에서 image 필드 치환 성공 여부 사전 확인
+#   7. [FIX] git pull --rebase 추가 → 다른 workflow와 충돌 방지
+# ======================================================
+name: Ingestion Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/external-ingestion/src/**'
+      - 'apps/external-ingestion/Dockerfile'
+
+env:
+  REGISTRY: ghcr.io
+  ORG: ${{ github.repository_owner }}
+
+concurrency:
+  group: manifest-update-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-external-ingestion:
+    name: Build & Push external-ingestion
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push external-ingestion
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/external-ingestion
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.ORG }}/external-ingestion:${{ env.IMAGE_TAG }}
+
+      # ── [FIX] sed 패턴 사전 검증 ──────────────────────────
+      # CronJob YAML은 image 필드가 아래 위치에 존재:
+      #   spec.jobTemplate.spec.template.spec.containers[].image
+      # Deployment YAML은:
+      #   spec.template.spec.containers[].image
+      # 두 구조 모두 "image: " 키워드를 포함하므로 동일 sed 패턴 적용 가능하나
+      # 치환 전 실제로 매칭되는지 확인하여 silent failure 방지
+      - name: Verify sed pattern matches all target files
+        run: |
+          TARGET_FILES=(
+            "apps/external-ingestion/deployment.yaml"
+            "apps/external-ingestion/cronjob-weather.yaml"
+            "apps/external-ingestion/cronjob-air-quality.yaml"
+            "apps/external-ingestion/cronjob-shelter.yaml"
+          )
+
+          PATTERN="image: .*external-ingestion:.*"
+          FAILED=0
+
+          for f in "${TARGET_FILES[@]}"; do
+            COUNT=$(grep -c "$PATTERN" "$f" || true)
+            if [ "$COUNT" -eq 0 ]; then
+              echo "❌ [WARN] No image tag match found in: $f"
+              echo "   Expected pattern: $PATTERN"
+              echo "   Actual image lines in file:"
+              grep "image:" "$f" || echo "   (no image: field found)"
+              FAILED=1
+            else
+              echo "✅ Pattern matched ($COUNT line(s)) in: $f"
+            fi
+          done
+
+          if [ "$FAILED" -eq 1 ]; then
+            echo ""
+            echo "::error::One or more target files do not contain the expected image tag pattern."
+            echo "Check that the image field value already contains 'external-ingestion:' prefix."
+            exit 1
+          fi
+
+      # Deployment + CronJob 4개 파일 모두 image tag 갱신
+      - name: Update image tags in all manifests
+        run: |
+          TARGET_IMAGE="${{ env.REGISTRY }}/${{ env.ORG }}/external-ingestion:${{ env.IMAGE_TAG }}"
+
+          for f in \
+            apps/external-ingestion/deployment.yaml \
+            apps/external-ingestion/cronjob-weather.yaml \
+            apps/external-ingestion/cronjob-air-quality.yaml \
+            apps/external-ingestion/cronjob-shelter.yaml
+          do
+            sed -i "s|image: .*external-ingestion:.*|image: ${TARGET_IMAGE}|g" "$f"
+            echo "Updated: $f → $TARGET_IMAGE"
+          done
+
+      # [FIX] git pull --rebase → 다른 workflow(api-deploy 등)가 먼저 push한 경우 대비
+      - name: Commit & push manifest
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin main
+          git add \
+            apps/external-ingestion/deployment.yaml \
+            apps/external-ingestion/cronjob-weather.yaml \
+            apps/external-ingestion/cronjob-air-quality.yaml \
+            apps/external-ingestion/cronjob-shelter.yaml
+          git diff --cached --quiet && echo "nothing to commit" && exit 0
+          git commit -m "chore(external-ingestion): update image tag to ${{ env.IMAGE_TAG }} [skip ci]"
+          git push
