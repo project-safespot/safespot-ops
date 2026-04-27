@@ -56,7 +56,7 @@ data:
           "targets": [
             {
               "expr": "rate(kube_pod_container_status_restarts_total{namespace=\"worker\"}[15m])",
-              "legendFormat": "{{ pod }} restarts"
+              "legendFormat": "{{`{{ pod }}`}}"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "short" } }
