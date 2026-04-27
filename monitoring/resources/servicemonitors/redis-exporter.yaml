@@ -22,4 +22,3 @@ spec:
     - port: redis-exporter
       path: /metrics
       interval: 15s
-      
