@@ -50,7 +50,7 @@ data:
         },
         {
           "id": 2,
-          "title": "메모리 사용량 (bytes)",
+          "title": "Memory Usage (bytes)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -68,7 +68,7 @@ data:
         },
         {
           "id": 3,
-          "title": "연결된 클라이언트 수",
+          "title": "Connected Clients",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -100,7 +100,7 @@ data:
         },
         {
           "id": 5,
-          "title": "Commands 처리량 (ops/s)",
+          "title": "Command Rate (ops/s)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },

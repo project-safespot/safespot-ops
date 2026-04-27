@@ -37,7 +37,7 @@ data:
       "panels": [
         {
           "id": 1,
-          "title": "HTTP 요청 수 (req/s)",
+          "title": "Request Per Second (req/s)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -51,7 +51,7 @@ data:
         },
         {
           "id": 2,
-          "title": "HTTP 오류율 (5xx)",
+          "title": "5xx Error Rate",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -65,7 +65,7 @@ data:
         },
         {
           "id": 3,
-          "title": "HTTP 응답 지연 p99 (s)",
+          "title": "Latency p99 (s)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -79,7 +79,7 @@ data:
         },
         {
           "id": 4,
-          "title": "HTTP 응답 지연 p50 (s)",
+          "title": "Latency p50 (s)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },

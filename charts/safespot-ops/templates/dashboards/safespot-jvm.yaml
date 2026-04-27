@@ -50,7 +50,7 @@ data:
         },
         {
           "id": 1,
-          "title": "Heap 사용량 (bytes)",
+          "title": "Heap usage (bytes)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
@@ -68,7 +68,7 @@ data:
         },
         {
           "id": 2,
-          "title": "Non-Heap 사용량 (bytes)",
+          "title": "Non-Heap usage (bytes)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
@@ -88,7 +88,7 @@ data:
         },
         {
           "id": 11,
-          "title": "GC 횟수 (회/s)",
+          "title": "GC count (times/s)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
@@ -102,7 +102,7 @@ data:
         },
         {
           "id": 12,
-          "title": "GC 평균 pause 시간 (s)",
+          "title": "GC average pause time (s)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
@@ -116,7 +116,7 @@ data:
         },
         {
           "id": 13,
-          "title": "메모리 할당 속도 (bytes/s)",
+          "title": "Memory allocation speed (bytes/s)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
@@ -136,7 +136,7 @@ data:
         },
         {
           "id": 21,
-          "title": "스레드 상태별 개수",
+          "title": "Count by thread state",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
@@ -150,7 +150,7 @@ data:
         },
         {
           "id": 22,
-          "title": "활성 스레드 수 (live)",
+          "title": "Number of active threads (live)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
@@ -195,7 +195,7 @@ data:
         },
         {
           "id": 32,
-          "title": "Process Start Time 변경 감지",
+          "title": "Detect changes in Process Start Time",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
           "datasource": { "type": "prometheus", "uid": "${datasource}" },

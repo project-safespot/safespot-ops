@@ -49,7 +49,7 @@ data:
         },
         {
           "id": 2,
-          "title": "Pod 재시작 횟수",
+          "title": "Pod restart count",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -63,7 +63,7 @@ data:
         },
         {
           "id": 3,
-          "title": "JVM Heap 사용률",
+          "title": "JVM Heap Usage",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },

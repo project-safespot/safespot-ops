@@ -1,6 +1,5 @@
 ﻿# ======================================================
 # safespot-overview Dashboard ConfigMap
-# label: grafana_dashboard: "1" → Grafana sidecar가 자동 감지 후 로드
 # namespace: monitoring
 #
 # gridPos 수정:
