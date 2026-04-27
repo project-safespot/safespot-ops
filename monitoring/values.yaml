@@ -44,8 +44,6 @@ prometheus:
 alertmanager:
   enabled: true
 
-  alertmanagerSpec: {}
-
   config:
     global:
       resolve_timeout: 5m
