@@ -1,0 +1,79 @@
+{
+  "title": "SafeSpot Overview",
+  "uid": "safespot-overview",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total HTTP Requests/s",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{namespace=~\"application\"}[1m])) by (uri)",
+          "legendFormat": "{{ uri }}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "HTTP Error Rate (5xx)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\", namespace=~\"application\"}[1m])) by (uri)",
+          "legendFormat": "{{ uri }}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Pod Running Count by Namespace",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 4 },
+      "targets": [
+        {
+          "expr": "count(kube_pod_status_phase{phase=\"Running\", namespace=~\"application|worker\"}) by (namespace)",
+          "legendFormat": "{{ namespace }}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "CrashLoop Pods",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 4 },
+      "options": {
+        "colorMode": "background",
+        "thresholds": {
+          "steps": [
+            { "color": "green", "value": 0 },
+            { "color": "red", "value": 1 }
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "count(rate(kube_pod_container_status_restarts_total{namespace=~\"application|worker\"}[5m]) * 60 > 1) or vector(0)",
+          "legendFormat": "CrashLoop Pods"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "HTTP P99 Latency by Service",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 12, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{namespace=~\"application\"}[1m])) by (le, job))",
+          "legendFormat": "p99 {{ job }}"
+        }
+      ]
+    }
+  ]
+}
