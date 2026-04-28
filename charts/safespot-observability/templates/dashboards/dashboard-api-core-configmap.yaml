@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-api-core
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+    env: dev
+    region: ap-northeast-2
+data:
+  api-core.json: |
+    {{- `
+    {
+      "title": "SafeSpot - api-core",
+      "uid": "safespot-api-core",
+      "tags": ["safespot", "api-core"],
+      "timezone": "Asia/Seoul",
+      "schemaVersion": 36,
+      "refresh": "30s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "요청 수 (TPS)",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{service=\"api-core\"}[1m])) by (uri)",
+              "legendFormat": "{{ uri }}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "latency p50 / p95 / p99",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{service=\"api-core\"}[1m])) by (le))",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{service=\"api-core\"}[1m])) by (le))",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{service=\"api-core\"}[1m])) by (le))",
+              "legendFormat": "p99"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "5xx 에러율",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "targets": [
+            {
+              "expr": "rate(http_server_requests_seconds_count{service=\"api-core\", status=~\"5..\"}[1m]) / rate(http_server_requests_seconds_count{service=\"api-core\"}[1m])",
+              "legendFormat": "5xx rate"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "JVM Heap 사용률",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+          "targets": [
+            {
+              "expr": "jvm_memory_used_bytes{service=\"api-core\", area=\"heap\"} / jvm_memory_max_bytes{service=\"api-core\", area=\"heap\"}",
+              "legendFormat": "heap 사용률"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "HPA Replica 수",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+          "targets": [
+            {
+              "expr": "kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=~\"api-core.*\"}",
+              "legendFormat": "current replicas"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_spec_max_replicas{horizontalpodautoscaler=~\"api-core.*\"}",
+              "legendFormat": "max replicas"
+            }
+          ]
+        }
+      ]
+    }
+    ` -}}

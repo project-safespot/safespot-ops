@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: external-ingestion
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+    app: external-ingestion
+    env: dev
+    region: ap-northeast-2
+spec:
+  selector:
+    matchLabels:
+      app: external-ingestion
+      env: dev
+  namespaceSelector:
+    matchNames:
+      - application
+  endpoints:
+    - targetPort: 8082
+      path: /actuator/prometheus
+      interval: 15s

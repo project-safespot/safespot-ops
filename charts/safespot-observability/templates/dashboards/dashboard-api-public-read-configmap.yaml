@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-api-public-read
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+    env: dev
+    region: ap-northeast-2
+data:
+  api-public-read.json: |
+    {{- `
+    {
+      "title": "SafeSpot - api-public-read",
+      "uid": "safespot-api-public-read",
+      "tags": ["safespot", "api-public-read", "redis"],
+      "timezone": "Asia/Seoul",
+      "schemaVersion": 36,
+      "refresh": "30s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "요청 수 (TPS) - 핵심 endpoint",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{service=\"api-public-read\", uri=~\"/disaster-alerts|/shelters/nearby|/weather-alerts|/air-quality\"}[1m])) by (uri)",
+              "legendFormat": "{{ uri }}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "latency p50 / p95 / p99",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{service=\"api-public-read\"}[1m])) by (le))",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{service=\"api-public-read\"}[1m])) by (le))",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{service=\"api-public-read\"}[1m])) by (le))",
+              "legendFormat": "p99"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Redis Cache Hit / Miss",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "targets": [
+            {
+              "expr": "sum(rate(api_read_cache_request_total{result=\"hit\"}[1m])) by (endpoint)",
+              "legendFormat": "hit - {{ endpoint }}"
+            },
+            {
+              "expr": "sum(rate(api_read_cache_request_total{result=\"miss\"}[1m])) by (endpoint)",
+              "legendFormat": "miss - {{ endpoint }}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Redis Fallback 발생",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+          "targets": [
+            {
+              "expr": "sum(rate(api_read_cache_fallback_total[1m])) by (endpoint, reason)",
+              "legendFormat": "{{ endpoint }} - {{ reason }}"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "DB Fallback 쿼리 수",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+          "targets": [
+            {
+              "expr": "sum(rate(api_read_db_fallback_query_total[1m])) by (endpoint)",
+              "legendFormat": "{{ endpoint }}"
+            }
+          ]
+        }
+      ]
+    }
+    ` -}}

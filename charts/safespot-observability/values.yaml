@@ -1,0 +1,42 @@
+# SafeSpot Observability - values.yaml
+# kube-prometheus-stack override 설정
+
+kube-prometheus-stack:
+  grafana:
+    adminPassword: admin1234
+    service:
+      type: LoadBalancer
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: ALL
+
+  prometheus:
+    service:
+      type: LoadBalancer
+    prometheusSpec:
+      serviceMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelectorNilUsesHelmValues: false
+      serviceMonitorNamespaceSelector: {}
+      podMonitorNamespaceSelector: {}
+
+  alertmanager:
+    alertmanagerSpec:
+      storage:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: local-path
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 2Gi
+
+# SafeSpot 공통 설정
+safespot:
+  env: dev
+  region: ap-northeast-2
+  namespace:
+    application: application
+    monitoring: monitoring

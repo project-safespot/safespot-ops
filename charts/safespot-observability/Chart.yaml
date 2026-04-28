@@ -1,11 +1,10 @@
 apiVersion: v2
-name: safespot-ops
-description: SafeSpot Observability Helm Chart (dashboards, servicemonitors, prometheusrules)
+name: safespot-observability
+description: SafeSpot 전용 관측성 Helm Chart (ServiceMonitor / PrometheusRule / Dashboard)
 type: application
 version: 0.1.0
-appVersion: "1.0.0"
 
 dependencies:
   - name: kube-prometheus-stack
-    version: "84.1.2"
+    version: "84.0.0"
     repository: "https://prometheus-community.github.io/helm-charts"
