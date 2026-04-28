@@ -1,4 +1,4 @@
-apiVersion: v1
+apiVersion: v2
 name: safespot-ops
 description: SafeSpot Observability Helm Chart (dashboards, servicemonitors, prometheusrules)
 type: application
