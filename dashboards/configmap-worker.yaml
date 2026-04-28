@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-safespot-worker
+  namespace: {{ .Values.namespaces.monitoring }}
+  labels:
+    {{- include "safespot-ops.labels" . | nindent 4 }}
+    {{- include "safespot-ops.dashboardLabels" . | nindent 4 }}
+data:
+  safespot-worker.json: |
+    {
+      "title": "SafeSpot Worker",
+      "uid": "safespot-worker",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "30s",
+      "panels": []
+    }

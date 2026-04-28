@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: async-worker
+  namespace: {{ .Values.namespaces.monitoring }}
+  labels:
+    {{- include "safespot-ops.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.services.asyncWorker.appLabel }}
+  endpoints:
+    - port: {{ .Values.services.asyncWorker.metricsPortName }}
+      path: {{ .Values.services.asyncWorker.metricsPath }}
+      interval: {{ .Values.global.scrapeInterval }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.namespaces.worker }}

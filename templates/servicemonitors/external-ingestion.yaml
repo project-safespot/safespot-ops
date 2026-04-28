@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: external-ingestion
+  namespace: {{ .Values.namespaces.monitoring }}
+  labels:
+    {{- include "safespot-ops.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.services.externalIngestion.appLabel }}
+  endpoints:
+    - port: {{ .Values.services.externalIngestion.metricsPortName }}
+      path: {{ .Values.services.externalIngestion.metricsPath }}
+      interval: {{ .Values.global.scrapeInterval }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.namespaces.application }}

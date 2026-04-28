@@ -1,0 +1,40 @@
+global:
+  env: dev
+  region: seoul
+  releaseLabel: monitoring
+  scrapeInterval: 15s
+  grafanaDashboardLabel: grafana_dashboard
+  grafanaDashboardLabelValue: "1"
+
+namespaces:
+  monitoring: monitoring
+  application: application
+  worker: worker
+  db: safespot-db
+  cache: safespot-cache
+
+services:
+  apiCore:
+    appLabel: api-core
+    metricsPortName: http
+    metricsPath: /actuator/prometheus
+  apiPublicRead:
+    appLabel: api-public-read
+    metricsPortName: http
+    metricsPath: /actuator/prometheus
+  externalIngestion:
+    appLabel: external-ingestion
+    metricsPortName: http
+    metricsPath: /actuator/prometheus
+  asyncWorker:
+    appLabel: async-worker
+    metricsPortName: http
+    metricsPath: /actuator/prometheus
+  postgresExporter:
+    appLabel: postgres-exporter
+    metricsPortName: http
+    metricsPath: /metrics
+  redisExporter:
+    appLabel: redis-exporter
+    metricsPortName: http
+    metricsPath: /metrics
