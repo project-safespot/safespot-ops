@@ -42,18 +42,97 @@ services:
 kube-prometheus-stack:
   grafana:
     enabled: true
+    admin:
+      existingSecret: grafana-admin-credentials
+      userKey: admin-user
+      passwordKey: admin-password
     sidecar:
       dashboards:
         enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: monitoring
 
   alertmanager:
     enabled: true
+    config:
+      global:
+        resolve_timeout: 5m
+      route:
+        group_by:
+          - alertname
+          - service
+          - env
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 2h
+        receiver: warning
+        routes:
+          - matchers:
+              - severity="critical"
+            receiver: critical
+            repeat_interval: 30m
+      receivers:
+        - name: critical
+          slack_configs:
+            - channel: "#safespot-alert-critical"
+              api_url: "$(SLACK_CRITICAL_WEBHOOK_URL)"
+              send_resolved: true
+              title: "[CRITICAL] {{ .GroupLabels.alertname }}"
+              text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+        - name: warning
+          slack_configs:
+            - channel: "#safespot-alert-warning"
+              api_url: "$(SLACK_WARNING_WEBHOOK_URL)"
+              send_resolved: true
+              title: "[WARNING] {{ .GroupLabels.alertname }}"
+              text: "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+      inhibit_rules:
+        - source_matchers:
+            - severity="critical"
+          target_matchers:
+            - severity="warning"
+          equal:
+            - alertname
+            - service
+    alertmanagerSpec:
+      containers:
+        - name: alertmanager
+          env:
+            - name: SLACK_CRITICAL_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-slack-webhook
+                  key: slack-critical-url
+            - name: SLACK_WARNING_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-slack-webhook
+                  key: slack-warning-url
 
   prometheus:
     enabled: true
     prometheusSpec:
       serviceMonitorSelectorNilUsesHelmValues: false
       ruleSelectorNilUsesHelmValues: false
+      serviceMonitorSelector:
+        matchLabels:
+          release: monitoring
+      serviceMonitorNamespaceSelector:
+        matchNames:
+          - monitoring
+          - application
+          - worker
+          - safespot-db
+          - safespot-cache
+      ruleSelector:
+        matchLabels:
+          release: monitoring
+      ruleNamespaceSelector:
+        matchNames:
+          - monitoring
+      scrapeInterval: 15s
+      evaluationInterval: 15s
 
   defaultRules:
     create: true

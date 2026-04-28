@@ -1,0 +1,12 @@
+global:
+  env: dev
+  region: seoul
+  releaseLabel: monitoring
+
+kube-prometheus-stack:
+  grafana:
+    enabled: true
+  alertmanager:
+    enabled: true
+  prometheus:
+    enabled: true

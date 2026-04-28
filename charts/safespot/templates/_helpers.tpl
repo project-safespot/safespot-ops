@@ -17,11 +17,11 @@ metadata:
 ===============================================================================
 */}}
 {{- define "safespot-ops.labels" -}}
-app.kubernetes.io/part-of: safespot            # 프로젝트 전체 그룹 식별
-app.kubernetes.io/managed-by: Helm             # Helm으로 관리되는 리소스 표시
-env: {{ .Values.global.env | quote }}          # 환경 (dev / prod 등)
-region: {{ .Values.global.region | quote }}    # 리전 (ap-northeast-2 등)
-release: {{ .Values.global.releaseLabel | quote }} # 릴리즈 구분 (monitoring / app 등)
+app.kubernetes.io/part-of: safespot
+app.kubernetes.io/managed-by: Helm
+env: {{ .Values.global.env | quote }}
+region: {{ .Values.global.region | quote }}
+release: {{ .Values.global.releaseLabel | quote }}
 {{- end }}
 
 
@@ -49,4 +49,22 @@ grafana_dashboard: "1"
 */}}
 {{- define "safespot-ops.dashboardLabels" -}}
 {{ .Values.global.grafanaDashboardLabel }}: {{ .Values.global.grafanaDashboardLabelValue | quote }}
+{{- end }}
+
+
+{{/*
+===============================================================================
+PrometheusRule 공통 라벨 정의
+-------------------------------------------------------------------------------
+Prometheus가 PrometheusRule을 인식하도록 release 라벨 포함
+
+사용 예:
+metadata:
+  labels:
+    {{- include "safespot-ops.ruleLabels" . | nindent 4 }}
+===============================================================================
+*/}}
+{{- define "safespot-ops.ruleLabels" -}}
+{{- include "safespot-ops.labels" . }}
+app.kubernetes.io/component: alerting
 {{- end }}
