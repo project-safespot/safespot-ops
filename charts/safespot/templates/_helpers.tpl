@@ -50,21 +50,3 @@ grafana_dashboard: "1"
 {{- define "safespot-ops.dashboardLabels" -}}
 {{ .Values.global.grafanaDashboardLabel }}: {{ .Values.global.grafanaDashboardLabelValue | quote }}
 {{- end }}
-
-
-{{/*
-===============================================================================
-PrometheusRule 공통 라벨 정의
--------------------------------------------------------------------------------
-Prometheus가 PrometheusRule을 인식하도록 release 라벨 포함
-
-사용 예:
-metadata:
-  labels:
-    {{- include "safespot-ops.ruleLabels" . | nindent 4 }}
-===============================================================================
-*/}}
-{{- define "safespot-ops.ruleLabels" -}}
-{{- include "safespot-ops.labels" . }}
-app.kubernetes.io/component: alerting
-{{- end }}
