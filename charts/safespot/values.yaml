@@ -59,8 +59,6 @@ kube-prometheus-stack:
   prometheus:
     enabled: true
     prometheusSpec:
-      serviceMonitorSelectorNilUsesHelmValues: false
-      ruleSelectorNilUsesHelmValues: false
       serviceMonitorSelector:
         matchLabels:
           release: monitoring
