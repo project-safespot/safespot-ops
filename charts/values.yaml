@@ -38,3 +38,28 @@ services:
     appLabel: redis-exporter
     metricsPortName: http
     metricsPath: /metrics
+
+kube-prometheus-stack:
+  grafana:
+    enabled: true
+    sidecar:
+      dashboards:
+        enabled: true
+
+  alertmanager:
+    enabled: true
+
+  prometheus:
+    enabled: true
+    prometheusSpec:
+      serviceMonitorSelectorNilUsesHelmValues: false
+      ruleSelectorNilUsesHelmValues: false
+
+  defaultRules:
+    create: true
+
+  kubeStateMetrics:
+    enabled: true
+
+  nodeExporter:
+    enabled: true
