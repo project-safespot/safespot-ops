@@ -1,0 +1,50 @@
+apiVersion: lambda.services.k8s.aws/v1alpha1
+kind: Function
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: async-worker
+    release: {{ .Release.Name }}
+    version: {{ .Values.image.tag | quote }}
+  # -----------------------------------------------------------------------
+  # sync-wave: 1
+  # EventSourceMapping(wave 3) 보다 먼저 Function 이 생성되어야
+  # SQS → Lambda 연결 시 대상 Function 이 존재하는 상태
+  # -----------------------------------------------------------------------
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .Values.syncWave.function | quote }}
+
+spec:
+  # AWS Lambda 함수 이름 (콘솔에 표시되는 이름)
+  name: {{ .Values.lambda.name }}
+
+  # -----------------------------------------------------------------------
+  # 컨테이너 이미지 기반 Lambda
+  # packageType: Image → ECR 이미지를 Lambda 실행 환경으로 사용
+  #
+  # imageURI = repository:tag
+  # GitHub Actions 가 values-dev.yaml 의 image.tag 를 수정
+  # → Argo CD 가 감지 → ACK 가 Lambda UpdateFunctionCode 호출
+  # -----------------------------------------------------------------------
+  packageType: {{ .Values.lambda.packageType }}
+  code:
+    imageURI: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+
+  # Lambda 실행 IAM Role
+  role: {{ .Values.lambda.roleArn }}
+
+  # 실행 설정
+  timeout: {{ .Values.lambda.timeout }}
+  memorySize: {{ .Values.lambda.memorySize }}
+
+  # -----------------------------------------------------------------------
+  # 환경변수 주입
+  # 민감 정보는 Lambda 실행 시 Secrets Manager 에서 직접 로드
+  # (환경변수에 직접 Secret 값 넣지 않음)
+  # -----------------------------------------------------------------------
+  environment:
+    variables:
+      {{- range $key, $val := .Values.lambda.environment }}
+      {{ $key }}: {{ $val | quote }}
+      {{- end }}

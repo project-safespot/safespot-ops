@@ -1,0 +1,119 @@
+# charts/api-public-read/values-dev.yaml
+# -----------------------------------------------------------------------
+# image.repository / image.tag 는 GitHub Actions app-build-gitops.yml 이 자동 수정
+# 그 외 값은 사람이 직접 관리
+# -----------------------------------------------------------------------
+
+image:
+  repository: ""      # GitHub Actions 자동 설정
+  tag: ""             # GitHub Actions 자동 설정 (sha-xxxxxxx)
+  pullPolicy: Always
+
+# -----------------------------------------------------------------------
+# api-public-read: public hot-path
+# 재난 상황 spike traffic 대응 → api-core 보다 replica 여유 있게 설정
+# -----------------------------------------------------------------------
+replicaCount: 2
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+
+# -----------------------------------------------------------------------
+# 리소스: dev 기준
+# -----------------------------------------------------------------------
+resources:
+  requests:
+    cpu: "250m"
+    memory: "512Mi"
+  limits:
+    cpu: "500m"
+    memory: "1Gi"
+
+# -----------------------------------------------------------------------
+# HPA: public read hot-path → spike 대응으로 maxReplicas 높게 설정
+# targetCPUUtilizationPercentage 60 → api-core(70) 보다 낮게 설정해
+# spike 시 더 빠르게 스케일 아웃
+# -----------------------------------------------------------------------
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 60
+
+# -----------------------------------------------------------------------
+# Probe 설정 (Spring Boot Actuator)
+#
+# readiness: Redis / RDS fallback 연결 포함
+#   → Redis miss 발생 시 RDS fallback 동작 가능 여부 확인
+#   → initialDelaySeconds 30: Spring Boot 기동 시간 확보
+#   → failureThreshold 6 = 60초간 유예
+#
+# liveness: 프로세스 생존 여부만
+#   → Redis 일시 장애로 Pod 재시작되는 것 방지
+#   → initialDelaySeconds 60: readiness 보다 길게 설정
+# -----------------------------------------------------------------------
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 6
+
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 15
+  failureThreshold: 3
+
+# -----------------------------------------------------------------------
+# sync-wave: 배포 순서 제어
+#   configmap: -1 (Deployment 보다 먼저)
+#   service:    1
+#   deployment: 2
+#   hpa:        4 (Deployment 정상 기동 후)
+# -----------------------------------------------------------------------
+syncWave:
+  configmap: "-1"
+  service: "1"
+  deployment: "2"
+  hpa: "4"
+
+# -----------------------------------------------------------------------
+# 비민감 환경변수 (ConfigMap 에 저장)
+#
+# Redis 연결 정보(REDIS_HOST, REDIS_PORT)는 Secret 에 저장
+# RDS fallback 연결 정보도 Secret 에 저장
+#
+# api-public-read 동작 정책 (api-public_read.md 기준):
+#   - Redis hit  → cached value 반환
+#   - Redis miss → CacheRegenerationRequested publish + RDS degraded fallback
+#   - 서울 외 요청 → 400 UNSUPPORTED_REGION
+# -----------------------------------------------------------------------
+config:
+  SPRING_PROFILES_ACTIVE: "dev"
+  AWS_REGION: "ap-northeast-2"
+  SERVER_PORT: "8080"
+  # MVP: 서울만 지원
+  SERVICE_REGION: "seoul"
+  # SQS: cache regeneration request 발행용
+  SQS_CACHE_REGEN_QUEUE_NAME: "safespot-cache-refresh"
+  # suppress window TTL (초) — cache-ttl.md 기준 30초
+  CACHE_REGEN_SUPPRESS_WINDOW_SECONDS: "30"
+  # Redis fallback 정책
+  REDIS_FALLBACK_ENABLED: "true"
+  # RDS fallback: degraded-mode 한정, hot-path 에서는 사용 안 함
+  HIKARI_CONNECTION_TIMEOUT: "30000"
+
+# -----------------------------------------------------------------------
+# Secret 참조 이름 (Kubernetes Secret 은 별도 관리)
+# DB_HOST, DB_PASSWORD, REDIS_HOST, REDIS_PORT, SQS_QUEUE_URL 등
+# -----------------------------------------------------------------------
+secretRef:
+  name: safespot-api-public-read-secret

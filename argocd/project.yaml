@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: safespot
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+
+spec:
+  description: "SafeSpot dev environment GitOps project"
+
+  sourceRepos:
+    - https://github.com/project-safespot/safespot-ops.git
+
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: safespot
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
+
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+
+  namespaceResourceWhitelist:
+    # 일반 Kubernetes 리소스
+    - group: "apps"
+      kind: Deployment
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: ServiceAccount
+    - group: "autoscaling"
+      kind: HorizontalPodAutoscaler
+    - group: "policy"
+      kind: PodDisruptionBudget
+    - group: "batch"
+      kind: Job
+    - group: "batch"
+      kind: CronJob
+    # -----------------------------------------------------------------------
+    # ACK Lambda Controller CRD 리소스
+    # async-worker 가 ACK 기반 Lambda 배포를 사용하므로 추가
+    #
+    # ACK Lambda Controller 가 이 CR 을 감시하여 AWS Lambda 에 반영:
+    #   Function           → Lambda 함수 생성/수정
+    #   EventSourceMapping → SQS 트리거 연결
+    # -----------------------------------------------------------------------
+    - group: "lambda.services.k8s.aws"
+      kind: Function
+    - group: "lambda.services.k8s.aws"
+      kind: EventSourceMapping
+
+  roles:
+    - name: read-only
+      description: "Read-only access for monitoring"
+      policies:
+        - p, proj:safespot:read-only, applications, get, safespot/*, allow
+      groups: []

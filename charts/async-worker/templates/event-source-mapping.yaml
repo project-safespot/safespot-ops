@@ -1,0 +1,40 @@
+apiVersion: lambda.services.k8s.aws/v1alpha1
+kind: EventSourceMapping
+metadata:
+  name: {{ .Release.Name }}-sqs-trigger
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: async-worker
+    release: {{ .Release.Name }}
+  # -----------------------------------------------------------------------
+  # sync-wave: 3
+  # Function(wave 1) 생성 완료 후 SQS 트리거 연결
+  # Function 이 없는 상태에서 EventSourceMapping 을 생성하면 오류 발생
+  # -----------------------------------------------------------------------
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .Values.syncWave.eventSourceMapping | quote }}
+
+spec:
+  # -----------------------------------------------------------------------
+  # SQS → Lambda 트리거 연결
+  #
+  # functionName: ACK Function CR 의 spec.name 과 일치해야 함
+  # eventSourceARN: SQS queue ARN (Terraform output)
+  # -----------------------------------------------------------------------
+  functionName: {{ .Values.lambda.name }}
+  eventSourceARN: {{ .Values.lambda.eventSourceMapping.sqsQueueArn }}
+
+  # -----------------------------------------------------------------------
+  # batch 설정
+  # async-worker.md: worker_batch_size DistributionSummary 로 관찰
+  # batchSize: Lambda 가 한 번에 수신하는 SQS message 수
+  # -----------------------------------------------------------------------
+  batchSize: {{ .Values.lambda.eventSourceMapping.batchSize }}
+
+  # -----------------------------------------------------------------------
+  # partial batch failure 활성화
+  # async-worker.md:
+  #   partial batch failure 는 허용됨
+  #   실패한 message 만 DLQ 로 전송, 나머지는 정상 처리
+  # -----------------------------------------------------------------------
+  functionResponseTypes: {{ .Values.lambda.eventSourceMapping.functionResponseTypes | toJson }}

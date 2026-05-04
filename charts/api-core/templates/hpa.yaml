@@ -1,0 +1,38 @@
+{{- if .Values.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: api-core
+    release: {{ .Release.Name }}
+  # -----------------------------------------------------------------------
+  # sync-wave: 4
+  # Deployment(wave 2) 정상 기동 완료 후 HPA 적용
+  # HPA 가 Deployment 보다 먼저 생성되면 scaleTargetRef 대상 없음 오류 발생
+  # -----------------------------------------------------------------------
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .Values.syncWave.hpa | quote }}
+
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}
+
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+
+  metrics:
+    # -----------------------------------------------------------------------
+    # CPU 사용률 기준 스케일 아웃
+    # api-core 는 admin write path → targetCPUUtilizationPercentage 70
+    # -----------------------------------------------------------------------
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}

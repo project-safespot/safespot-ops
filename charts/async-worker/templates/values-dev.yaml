@@ -1,0 +1,82 @@
+# charts/async-worker/values-dev.yaml
+# -----------------------------------------------------------------------
+# image.tag 는 GitHub Actions app-build-gitops.yml 이 자동 수정
+# 그 외 값은 사람이 직접 관리
+#
+# 배포 구조:
+#   일반 서비스: Deployment CR → Kubernetes Pod
+#   async-worker: ACK Function CR → ACK Lambda Controller → AWS Lambda
+#
+# ACK Function CR 필드 기준:
+#   spec.code.imageURI = image.repository + ":" + image.tag
+# -----------------------------------------------------------------------
+
+image:
+  # -----------------------------------------------------------------------
+  # ECR repository URI (tag 제외)
+  # 예: 123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/safespot-dev-ops-ecr-async-worker
+  # GitHub Actions 가 자동 설정
+  # -----------------------------------------------------------------------
+  repository: ""    # GitHub Actions 자동 설정
+  tag: ""           # GitHub Actions 자동 설정 (sha-xxxxxxx)
+
+# -----------------------------------------------------------------------
+# AWS Lambda 함수 설정
+# -----------------------------------------------------------------------
+lambda:
+  # AWS Lambda 함수 이름 (AWS 콘솔에서 보이는 이름)
+  name: safespot-async-worker-dev
+
+  # -----------------------------------------------------------------------
+  # Lambda 실행 IAM Role ARN
+  # Terraform 으로 생성한 역할 ARN 을 입력
+  # 필요 권한: SQS ReceiveMessage/DeleteMessage, Redis 접근, CloudWatch Logs
+  # -----------------------------------------------------------------------
+  roleArn: ""    # Terraform output 에서 가져와서 설정
+
+  # 컨테이너 이미지 기반 Lambda
+  packageType: Image
+
+  # -----------------------------------------------------------------------
+  # Lambda 실행 설정
+  # async-worker.md 기준:
+  #   SQS → Lambda → SqsBatchProcessor → EventDispatcher → Handler → Redis
+  #   message 처리 시간이 있으므로 timeout 여유 있게 설정
+  # -----------------------------------------------------------------------
+  timeout: 60        # 초 단위, 최대 900
+  memorySize: 512    # MB 단위
+
+  # -----------------------------------------------------------------------
+  # SQS 이벤트 소스 매핑 설정
+  # Lambda 가 SQS 에서 message 를 batch 로 수신
+  # async-worker.md: partial batch failure 허용
+  # -----------------------------------------------------------------------
+  eventSourceMapping:
+    sqsQueueArn: ""        # Terraform output 에서 가져와서 설정
+    batchSize: 10
+    # partial batch failure 활성화
+    # 일부 message 처리 실패 시 해당 message 만 DLQ 로 전송
+    functionResponseTypes:
+      - ReportBatchItemFailures
+
+  # -----------------------------------------------------------------------
+  # Lambda 환경변수
+  # 민감 정보(REDIS_HOST, DB_HOST 등)는 Secrets Manager 에서 직접 참조
+  # -----------------------------------------------------------------------
+  environment:
+    SPRING_PROFILES_ACTIVE: "dev"
+    AWS_REGION: "ap-northeast-2"
+    # SQS queue 이름 (event source mapping 과 별개로 logging 용)
+    SQS_QUEUE_NAME: "safespot-cache-refresh"
+    # DLQ
+    DLQ_QUEUE_NAME: "safespot-cache-refresh-dlq"
+    # MVP: 서울만 지원
+    SERVICE_REGION: "seoul"
+
+# -----------------------------------------------------------------------
+# sync-wave: 배포 순서 제어
+#   eventSourceMapping: Lambda Function 생성 완료 후 SQS 연결
+# -----------------------------------------------------------------------
+syncWave:
+  function: "1"
+  eventSourceMapping: "3"

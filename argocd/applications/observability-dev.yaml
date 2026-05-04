@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: safespot-observability
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+
+spec:
+  project: safespot
+
+  source:
+    repoURL: https://github.com/project-safespot/safespot-ops.git
+    targetRevision: aws
+    path: charts/safespot-observability
+    helm:
+      valueFiles:
+        - values-dev.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    # -----------------------------------------------------------------------
+    # observability 는 monitoring 전용 namespace 사용
+    # application 서비스(safespot)와 namespace 분리
+    # → 재난 spike 시 observability 장애가 서비스에 영향 주지 않도록 격리
+    # -----------------------------------------------------------------------
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m

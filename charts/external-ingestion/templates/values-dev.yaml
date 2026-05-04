@@ -1,0 +1,145 @@
+# charts/external-ingestion/values-dev.yaml
+# -----------------------------------------------------------------------
+# image.repository / image.tag 는 GitHub Actions app-build-gitops.yml 이 자동 수정
+# 그 외 값은 사람이 직접 관리
+# -----------------------------------------------------------------------
+
+image:
+  repository: ""      # GitHub Actions 자동 설정
+  tag: ""             # GitHub Actions 자동 설정 (sha-xxxxxxx)
+  pullPolicy: Always
+
+# -----------------------------------------------------------------------
+# external-ingestion: polling loop / CronJob 형태 수집 서비스
+#
+# replicaCount: 1 고정 (HPA 비활성화)
+#
+# 이유:
+#   replica 2 이상이면 동일 외부 API 를 동시에 polling
+#   → 외부 API quota 초과 위험 (예: AIR_KOREA 500/day, SAFETY_DATA 1000/day)
+#   → 동일 payload 중복 수집 → duplicate_payload_total 증가
+#   → external-ingestion.md: polling interval / quota 제한 명시
+# -----------------------------------------------------------------------
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+  
+ingress:
+  enabled: true
+
+# -----------------------------------------------------------------------
+# 리소스: dev 기준
+# 수집/정규화 처리 → CPU burst 가능성 있으므로 limits 여유 있게 설정
+# -----------------------------------------------------------------------
+resources:
+  requests:
+    cpu: "250m"
+    memory: "512Mi"
+  limits:
+    cpu: "500m"
+    memory: "1Gi"
+
+# -----------------------------------------------------------------------
+# HPA 비활성화
+# 이유: 중복 polling 방지 (위 replicaCount 설명 참고)
+# -----------------------------------------------------------------------
+autoscaling:
+  enabled: false
+
+# -----------------------------------------------------------------------
+# Probe 설정 (Spring Boot Actuator)
+#
+# readiness: DB 연결 포함
+#   → external-ingestion 은 수집 후 RDS 에 write
+#   → DB 준비 안 됐으면 트래픽 차단 (수집 loop 도 RDS write 막힘)
+#   → failureThreshold 6 = 60초 유예
+#
+# liveness: 프로세스 생존 여부만
+#   → 외부 API 일시 장애로 Pod 재시작되는 것 방지
+#   → initialDelaySeconds 60: readiness 보다 길게 설정
+# -----------------------------------------------------------------------
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 6
+
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 15
+  failureThreshold: 3
+
+# -----------------------------------------------------------------------
+# sync-wave: 배포 순서 제어
+#   configmap: -1 (Deployment 보다 먼저)
+#   service:    1
+#   deployment: 2
+#   (HPA 없음)
+# -----------------------------------------------------------------------
+syncWave:
+  configmap: "-1"
+  service: "1"
+  deployment: "2"
+
+# -----------------------------------------------------------------------
+# 비민감 환경변수 (ConfigMap 에 저장)
+#
+# 외부 API key 는 반드시 Secret 에 저장
+# external-ingestion.md 8.5 Key Masking 규칙:
+#   실제 API key 저장 금지 (문서, 로그, 테스트, raw payload 모두)
+#   env var 명만 사용
+#
+# source 별 polling interval / quota (external-ingestion.md 기준):
+#   SAFETY_DATA_ALERT: 2분, 1000/day
+#   KMA_EARTHQUAKE:    1분, 10000/day
+#   SEOUL_RIVER_LEVEL: 10분
+#   KMA_WEATHER:       매시 정각
+#   AIR_KOREA:         매시 정각, 500/day
+# -----------------------------------------------------------------------
+config:
+  SPRING_PROFILES_ACTIVE: "dev"
+  AWS_REGION: "ap-northeast-2"
+  SERVER_PORT: "8080"
+  # MVP: 서울만 지원
+  SERVICE_REGION: "seoul"
+  # SQS: normalized data 수집 후 cache refresh event 발행용
+  SQS_CACHE_REFRESH_QUEUE_NAME: "safespot-cache-refresh"
+  # 외부 API source 활성화 여부 (external-ingestion.md 기준)
+  SOURCE_SAFETY_DATA_ALERT_ENABLED: "true"
+  SOURCE_KMA_EARTHQUAKE_ENABLED: "true"
+  SOURCE_SEOUL_EARTHQUAKE_ENABLED: "true"
+  SOURCE_SEOUL_RIVER_LEVEL_ENABLED: "true"
+  SOURCE_KMA_WEATHER_ENABLED: "true"
+  SOURCE_AIR_KOREA_AIR_QUALITY_ENABLED: "true"
+  SOURCE_SEOUL_SHELTER_EARTHQUAKE_ENABLED: "true"
+  SOURCE_SEOUL_SHELTER_LANDSLIDE_ENABLED: "true"
+  # 승인 대기 → false
+  SOURCE_FORESTRY_LANDSLIDE_ENABLED: "false"
+  # 파일 ingest 전용 → false
+  SOURCE_SEOUL_SHELTER_FLOOD_ENABLED: "false"
+  # RDS write: HikariCP 설정
+  HIKARI_CONNECTION_TIMEOUT: "30000"
+  HIKARI_INITIALIZATION_FAIL_TIMEOUT: "60000"
+
+# -----------------------------------------------------------------------
+# Secret 참조 이름 (Kubernetes Secret 은 별도 관리)
+#
+# 포함되어야 할 key 목록:
+#   DB_HOST, DB_PASSWORD
+#   SAFETY_DATA_ALERT_API_KEY
+#   KMA_API_KEY
+#   SEOUL_API_KEY
+#   ODCLOUD_API_KEY
+#   FORESTRY_API_KEY
+#   AIR_KOREA_API_KEY
+#   SQS_QUEUE_URL
+# -----------------------------------------------------------------------
+secretRef:
+  name: safespot-external-ingestion-secret

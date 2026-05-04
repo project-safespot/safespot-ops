@@ -1,0 +1,6 @@
+apiVersion: v2
+name: api-public-read
+description: "SafeSpot api-public-read — Redis-first public read, shelter/disaster/weather"
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

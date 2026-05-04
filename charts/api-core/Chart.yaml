@@ -1,0 +1,6 @@
+apiVersion: v2
+name: api-core
+description: "SafeSpot api-core — admin write, auth, RDS transaction, SQS event publish"
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

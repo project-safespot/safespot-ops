@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: safespot-async-worker
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+
+spec:
+  project: safespot
+
+  # -----------------------------------------------------------------------
+  # source: GitHub Actions 가 values-dev.yaml 의 image.tag 를 수정하면
+  #         Argo CD 가 변경을 감지하고 자동 sync 실행
+  #
+  # 배포 흐름:
+  #   GitHub Actions → ECR push → values-dev.yaml image.tag 수정 → Git push
+  #   → Argo CD 감지 → ACK Function CR 적용
+  #   → ACK Lambda Controller → AWS Lambda UpdateFunctionCode
+  # -----------------------------------------------------------------------
+  source:
+    repoURL: https://github.com/project-safespot/safespot-ops.git
+    targetRevision: aws
+    path: charts/async-worker
+    helm:
+      valueFiles:
+        - values-dev.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    # -----------------------------------------------------------------------
+    # ACK Function CR 은 safespot namespace 에 배포
+    # ACK Lambda Controller 가 이 namespace 를 감시하여 AWS Lambda 에 반영
+    # -----------------------------------------------------------------------
+    namespace: safespot
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m

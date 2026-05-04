@@ -1,0 +1,6 @@
+apiVersion: v2
+name: external-ingestion
+description: "SafeSpot external-ingestion — external API collection, normalization, RDS write, SQS event publish"
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

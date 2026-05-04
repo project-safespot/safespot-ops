@@ -1,0 +1,6 @@
+apiVersion: v2
+name: async-worker
+description: "SafeSpot async-worker — SQS event consumer, Redis cache rebuild (ACK Lambda CR 기반)"
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

@@ -1,0 +1,146 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: external-ingestion
+    release: {{ .Release.Name }}
+    version: {{ .Values.image.tag | quote }}
+  # -----------------------------------------------------------------------
+  # sync-wave: 2
+  # ConfigMap(wave -1) → Service(wave 1) 생성 완료 후 Pod 생성
+  # -----------------------------------------------------------------------
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .Values.syncWave.deployment | quote }}
+
+spec:
+  # -----------------------------------------------------------------------
+  # replicas: 1 고정
+  #
+  # HPA 비활성화와 함께 반드시 1로 유지해야 함
+  # 이유: replica 2 이상 시 동일 외부 API 동시 polling
+  #   → 외부 API quota 초과 (AIR_KOREA 500/day, SAFETY_DATA 1000/day)
+  #   → 동일 payload 중복 수집
+  #
+  # 장애 복구는 Kubernetes 자체 Pod restart 로 처리
+  # (replica 1 이어도 Pod crash 시 자동 재시작됨)
+  # -----------------------------------------------------------------------
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: external-ingestion
+      release: {{ .Release.Name }}
+
+  # -----------------------------------------------------------------------
+  # RollingUpdate: replicas 1 에서도 Recreate 대신 RollingUpdate 사용
+  #
+  # maxUnavailable: 0, maxSurge: 1 설정 시:
+  #   새 Pod(1개) 생성 → readiness 통과 → 구 Pod 종료
+  #   → 배포 중 잠깐 2개 실행되지만 구 Pod 즉시 종료
+  #   → 외부 API 중복 호출 window 최소화 (readiness 통과 시간 약 30초)
+  #
+  # 허용 이유:
+  #   polling loop 는 DB payload_hash 중복 감지로 중복 저장 방지
+  #   (external-ingestion.md: ingestion_duplicate_payload_total 지표 관리)
+  # -----------------------------------------------------------------------
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  template:
+    metadata:
+      labels:
+        app: external-ingestion
+        release: {{ .Release.Name }}
+        version: {{ .Values.image.tag | quote }}
+
+    spec:
+      # -----------------------------------------------------------------------
+      # Init Container: RDS 연결 대기
+      #
+      # external-ingestion 책임:
+      #   외부 API 수집 → normalize → RDS write → SQS event publish
+      #
+      # RDS write 가 핵심 → DB 준비 전 polling loop 시작 방지
+      # Redis 는 직접 write 하지 않으므로 대기 불필요
+      # (external-ingestion.md 7. 책임 분리: Redis 직접 write 금지)
+      # -----------------------------------------------------------------------
+      initContainers:
+        - name: wait-for-db
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z "${DB_HOST}" 5432; do
+                echo "RDS 준비 대기 중..."
+                sleep 5
+              done
+              echo "RDS 연결 확인 완료"
+          env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRef.name }}
+                  key: DB_HOST
+
+      containers:
+        - name: external-ingestion
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+
+          # -----------------------------------------------------------------------
+          # 환경변수 주입
+          # 1. Secret: DB_HOST, DB_PASSWORD, 외부 API key 전체, SQS_QUEUE_URL
+          # 2. ConfigMap: SPRING_PROFILES_ACTIVE, SOURCE_*_ENABLED 등 비민감 설정
+          #
+          # 외부 API key 는 반드시 Secret 에서만 로드
+          # ConfigMap 에 API key 값 직접 기재 금지
+          # (external-ingestion.md 8.5 Key Masking 규칙)
+          # -----------------------------------------------------------------------
+          envFrom:
+            - secretRef:
+                name: {{ .Values.secretRef.name }}
+            - configMapRef:
+                name: {{ .Release.Name }}-config
+
+          # -----------------------------------------------------------------------
+          # readinessProbe: DB 연결 포함
+          #   → DB 준비 안 됐으면 polling loop 시작 차단
+          #   → failureThreshold 6 = 60초 유예 (Spring Boot 기동 대기)
+          #
+          # livenessProbe: 프로세스 생존 여부만
+          #   → 외부 API 일시 장애 / timeout 으로 Pod 재시작되는 것 방지
+          #   → polling 실패는 retry / skip 으로 처리 (monitoring.md 기준)
+          # -----------------------------------------------------------------------
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.httpGet.path }}
+              port: {{ .Values.readinessProbe.httpGet.port }}
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.httpGet.path }}
+              port: {{ .Values.livenessProbe.httpGet.port }}
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}

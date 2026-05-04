@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: external-ingestion
+    release: {{ .Release.Name }}
+  # -----------------------------------------------------------------------
+  # sync-wave: 1
+  # Deployment(wave 2) 보다 먼저 생성하여 ClusterIP 확보
+  #
+  # external-ingestion 은 외부에서 직접 수신하는 서비스가 아님
+  # (polling loop 가 외부 API 를 호출하는 방향)
+  # Service 는 actuator health probe 및 내부 관리 목적으로만 사용
+  # -----------------------------------------------------------------------
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .Values.syncWave.service | quote }}
+
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: external-ingestion
+    release: {{ .Release.Name }}
+  ports:
+    - name: http
+      protocol: TCP
+      port: {{ .Values.service.port }}
+      targetPort: http
