@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: external-ingestion
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: external-ingestion
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.serviceMonitor.targetNamespace }}
+  selector:
+    matchLabels:
+      {{- toYaml .Values.services.externalIngestion.selector | nindent 6 }}
+  endpoints:
+    - port: http
+      path: {{ .Values.services.externalIngestion.metricsPath }}
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+      # 주요 메트릭: ingestion_polling_loop_iteration_total, ingestion_external_api_*,
+      #             ingestion_records_*, ingestion_normalization_*, ingestion_sqs_publish_*

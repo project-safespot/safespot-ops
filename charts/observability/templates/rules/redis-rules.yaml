@@ -1,0 +1,81 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: safespot-redis-rules
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: safespot.redis
+      interval: 30s
+      rules:
+
+        # Memory usage 임계값 초과
+        - alert: RedisMemoryUsageHigh
+          expr: |
+            redis_memory_used_bytes / redis_memory_max_bytes
+            > {{ .Values.alerts.redis.memoryUsageMax }}
+          for: 2m
+          labels:
+            severity: warning
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Redis 메모리 사용량 높음"
+            description: "usage = {{ "{{$value | humanizePercentage}}" }} (임계값: {{ .Values.alerts.redis.memoryUsageMax }})"
+
+        # Eviction 급증 — key가 TTL 전에 강제 삭제됨 = cache miss 급증 원인
+        - alert: RedisEvictionRateHigh
+          expr: |
+            rate(redis_evicted_keys_total[1m])
+            > {{ .Values.alerts.redis.evictionRateMax }}
+          for: 2m
+          labels:
+            severity: warning
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Redis eviction rate 급증"
+            description: "eviction = {{ "{{$value | printf \"%.1f\"}}" }}/sec (임계값: {{ .Values.alerts.redis.evictionRateMax }}/sec)"
+
+        # Rejected connections 발생 — Redis maxclients 초과
+        - alert: RedisRejectedConnections
+          expr: |
+            rate(redis_rejected_connections_total[1m]) > 0
+          for: 1m
+          labels:
+            severity: critical
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Redis rejected connections 발생"
+            description: "{{ "{{$value | printf \"%.1f\"}}" }}/sec 연결 거부 발생"
+
+        # Blocked clients 발생
+        - alert: RedisBlockedClientsNonZero
+          expr: |
+            redis_blocked_clients > 0
+          for: 2m
+          labels:
+            severity: warning
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Redis blocked clients 발생"
+            description: "blocked clients = {{ "{{$value}}" }}"
+
+        # Redis hit ratio 하락 (인프라 관점 — api 관점과 별도)
+        - alert: RedisHitRatioLow
+          expr: |
+            (
+              rate(redis_keyspace_hits_total[5m])
+            / (
+              rate(redis_keyspace_hits_total[5m])
+              + rate(redis_keyspace_misses_total[5m])
+            )) < 0.7
+          for: 5m
+          labels:
+            severity: warning
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Redis 전체 hit ratio 하락"
+            description: "hit ratio = {{ "{{$value | humanizePercentage}}" }}"

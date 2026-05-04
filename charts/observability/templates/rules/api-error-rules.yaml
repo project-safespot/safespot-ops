@@ -1,0 +1,95 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: safespot-api-error-rules
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: safespot.api.error
+      interval: 30s
+      rules:
+
+        # 전체 서비스 5xx 에러율 초과
+        - alert: ApiErrorRateHigh
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{
+                service=~"api-core|api-public-read",
+                status=~"5.."
+              }[5m]))
+            /
+              sum(rate(http_server_requests_seconds_count{
+                service=~"api-core|api-public-read"
+              }[5m]))
+            ) * 100
+            > {{ .Values.alerts.api.errorRateThresholdPercent }}
+          for: 2m
+          labels:
+            severity: critical
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "API 5xx 에러율 초과"
+            description: "5xx rate = {{ "{{$value | printf \"%.2f\"}}" }}% (임계값: {{ .Values.alerts.api.errorRateThresholdPercent }}%)"
+
+        # Cache hit ratio 하락 (Redis miss 급증)
+        - alert: CacheHitRatioLow
+          expr: |
+            (
+              sum(rate(api_read_cache_request_total{service="api-public-read", result="hit"}[5m]))
+            /
+              sum(rate(api_read_cache_request_total{service="api-public-read"}[5m]))
+            ) < {{ .Values.alerts.api.cacheHitRatioMin }}
+          for: 3m
+          labels:
+            severity: warning
+            service: api-public-read
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Cache hit ratio 하락"
+            description: "hit ratio = {{ "{{$value | printf \"%.2f\"}}" }} (임계값: {{ .Values.alerts.api.cacheHitRatioMin }})"
+
+        # DB fallback 급증 (redis_down)
+        - alert: RedisFallbackSpiking
+          expr: |
+            sum(rate(api_read_cache_fallback_total{
+              service="api-public-read",
+              reason="redis_down"
+            }[1m])) > 5
+          for: 1m
+          labels:
+            severity: critical
+            service: api-public-read
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Redis down으로 인한 DB fallback 급증"
+            description: "redis_down fallback = {{ "{{$value | printf \"%.1f\"}}" }}/sec"
+
+        # DB fallback query 급증
+        - alert: DbFallbackQuerySpiking
+          expr: |
+            sum(rate(api_read_db_fallback_query_total{service="api-public-read"}[1m])) > 20
+          for: 1m
+          labels:
+            severity: warning
+            service: api-public-read
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "DB fallback query 급증"
+            description: "fallback query = {{ "{{$value | printf \"%.1f\"}}" }}/sec"
+
+        # SQS publish 영구 실패
+        - alert: SqsPublishPermanentFailure
+          expr: |
+            sum(rate(api_core_sqs_publish_permanent_failure_total{service="api-core"}[5m])) > 0
+          for: 1m
+          labels:
+            severity: critical
+            service: api-core
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "SQS publish 영구 실패 발생"
+            description: "event_type={{ "{{$labels.event_type}}" }}, queue={{ "{{$labels.queue_name}}" }}"

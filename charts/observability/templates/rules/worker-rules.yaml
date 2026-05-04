@@ -1,0 +1,97 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: safespot-worker-rules
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: safespot.worker
+      interval: 30s
+      rules:
+
+        # Worker 처리 실패율 초과
+        - alert: WorkerFailureRateHigh
+          expr: |
+            (
+              sum(rate(worker_failures_total{service="async-worker"}[5m]))
+            /
+              sum(rate(worker_processed_total{service="async-worker"}[5m]))
+            ) > {{ .Values.alerts.worker.failureRateMax }}
+          for: 2m
+          labels:
+            severity: warning
+            service: async-worker
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Worker 처리 실패율 초과"
+            description: "failure rate = {{ "{{$value | humanizePercentage}}" }} (임계값: {{ .Values.alerts.worker.failureRateMax }})"
+
+        # Worker 처리 p95 latency 초과
+        - alert: WorkerProcessingDurationHigh
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(worker_processing_duration_seconds_bucket{service="async-worker"}[5m])) by (le, event_type)
+            ) > {{ .Values.alerts.worker.processingDurationP95Seconds }}
+          for: 3m
+          labels:
+            severity: warning
+            service: async-worker
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Worker 처리 latency 높음 ({{ "{{$labels.event_type}}" }})"
+            description: "p95 = {{ "{{$value | humanizeDuration}}" }} (임계값: {{ .Values.alerts.worker.processingDurationP95Seconds }}s)"
+
+        # DLQ 메시지 발생 — 즉시 대응 필요
+        - alert: WorkerDlqMessageDetected
+          expr: |
+            sum(rate(worker_dlq_publish_total{service="async-worker"}[1m])) > {{ .Values.alerts.worker.dlqMessageMax }}
+          for: 1m
+          labels:
+            severity: critical
+            service: async-worker
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Worker DLQ 메시지 발생"
+            description: "event_type={{ "{{$labels.event_type}}" }}, reason={{ "{{$labels.reason}}" }}"
+
+        # Redis write 실패
+        - alert: WorkerRedisWriteFailure
+          expr: |
+            sum(rate(worker_redis_write_total{service="async-worker", result="failure"}[1m])) > 0
+          for: 1m
+          labels:
+            severity: warning
+            service: async-worker
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Worker Redis write 실패 발생"
+            description: "operation={{ "{{$labels.operation}}" }}, event_type={{ "{{$labels.event_type}}" }}"
+
+        # Cache regeneration 실패
+        - alert: CacheRegenerationFailed
+          expr: |
+            sum(rate(cache_regeneration_failed_total[5m])) by (cache_key_family, reason) > 0
+          for: 2m
+          labels:
+            severity: warning
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Cache regeneration 실패 ({{ "{{$labels.cache_key_family}}" }})"
+            description: "reason={{ "{{$labels.reason}}" }}"
+
+        # Partial batch failure 발생
+        - alert: WorkerPartialBatchFailure
+          expr: |
+            sum(rate(worker_partial_batch_failure_total{service="async-worker"}[1m])) > 0
+          for: 1m
+          labels:
+            severity: warning
+            service: async-worker
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Worker partial batch failure 발생"
+            description: "event_type={{ "{{$labels.event_type}}" }}, queue={{ "{{$labels.queue_name}}" }}"

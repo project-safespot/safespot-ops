@@ -1,0 +1,158 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-eks
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    {{- include "safespot-observability.dashboardLabel" . | nindent 4 }}
+data:
+  eks-dashboard.json: |
+    {
+      "uid": "safespot-eks",
+      "title": "SafeSpot — EKS Infrastructure",
+      "tags": ["safespot", "eks", "kubernetes", "infra"],
+      "timezone": "Asia/Seoul",
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+
+        {
+          "id": 1,
+          "title": "Node CPU Usage (%)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "100 - (avg by (node) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+              "legendFormat": "{{ "{{node}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percent" } }
+        },
+
+        {
+          "id": 2,
+          "title": "Node Memory Usage (%)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "(\n  1 - (\n    node_memory_MemAvailable_bytes\n  / node_memory_MemTotal_bytes\n  )\n) * 100",
+              "legendFormat": "memory usage %"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percent" } }
+        },
+
+        {
+          "id": 3,
+          "title": "Pod CPU Usage — safespot 서비스",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 6, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"safespot\",container!=\"\"}[5m])) by (pod)",
+              "legendFormat": "{{ "{{pod}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "cores" } }
+        },
+
+        {
+          "id": 4,
+          "title": "Pod Memory Usage — safespot 서비스",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 6, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(container_memory_working_set_bytes{namespace=\"safespot\",container!=\"\"}) by (pod)",
+              "legendFormat": "{{ "{{pod}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+
+        {
+          "id": 5,
+          "title": "Pod Restart 수 (최근 1h)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 12, "w": 12, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"safespot\"}[1h])",
+              "legendFormat": "{{ "{{pod}}" }}/{{ "{{container}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 6,
+          "title": "HPA 현황 (desired / current / max)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 12, "w": 12, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"safespot\"}",
+              "legendFormat": "desired {{ "{{horizontalpodautoscaler}}" }}"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"safespot\"}",
+              "legendFormat": "current {{ "{{horizontalpodautoscaler}}" }}"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"safespot\"}",
+              "legendFormat": "max {{ "{{horizontalpodautoscaler}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 7,
+          "title": "Running / Pending / Failed Pods",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 17, "w": 12, "h": 3 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "count(kube_pod_status_phase{namespace=\"safespot\",phase=\"Running\"})",
+              "legendFormat": "Running"
+            },
+            {
+              "expr": "count(kube_pod_status_phase{namespace=\"safespot\",phase=\"Pending\"})",
+              "legendFormat": "Pending"
+            },
+            {
+              "expr": "count(kube_pod_status_phase{namespace=\"safespot\",phase=\"Failed\"})",
+              "legendFormat": "Failed"
+            }
+          ]
+        },
+
+        {
+          "id": 8,
+          "title": "Node Disk I/O (read / write bytes/sec)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 17, "w": 12, "h": 3 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(node_disk_read_bytes_total[5m]))",
+              "legendFormat": "read bytes/sec"
+            },
+            {
+              "expr": "sum(rate(node_disk_written_bytes_total[5m]))",
+              "legendFormat": "write bytes/sec"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        }
+
+      ]
+    }

@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: api-core
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api-core
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.serviceMonitor.targetNamespace }}
+  selector:
+    matchLabels:
+      {{- toYaml .Values.services.apiCore.selector | nindent 6 }}
+  endpoints:
+    - port: http
+      path: {{ .Values.services.apiCore.metricsPath }}
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+      # Spring Boot Actuator — Micrometer 메트릭
+      # 주요 메트릭: http.server.requests, api_core_*, jvm_*, process_*

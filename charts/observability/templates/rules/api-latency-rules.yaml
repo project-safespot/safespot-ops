@@ -1,0 +1,65 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: safespot-api-latency-rules
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: safespot.api.latency
+      interval: 30s
+      rules:
+
+        # api-public-read 핵심 엔드포인트 p95 latency 초과
+        - alert: ApiPublicReadLatencyHigh
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_server_requests_seconds_bucket{
+                service="api-public-read",
+                uri=~"/shelters/nearby|/disaster-alerts|/disasters.*"
+              }[5m])) by (le, uri)
+            ) > {{ .Values.alerts.api.latencyP95ThresholdSeconds }}
+          for: 2m
+          labels:
+            severity: warning
+            service: api-public-read
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "api-public-read p95 latency 초과 ({{ "{{$labels.uri}}" }})"
+            description: |
+              {{ "{{$labels.uri}}" }} p95 latency = {{ "{{$value | humanizeDuration}}" }}
+              임계값: {{ .Values.alerts.api.latencyP95ThresholdSeconds }}s
+
+        # api-core p95 latency 초과
+        - alert: ApiCoreLatencyHigh
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_server_requests_seconds_bucket{service="api-core"}[5m])) by (le, uri)
+            ) > {{ .Values.alerts.api.latencyP95ThresholdSeconds }}
+          for: 2m
+          labels:
+            severity: warning
+            service: api-core
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "api-core p95 latency 초과 ({{ "{{$labels.uri}}" }})"
+            description: |
+              {{ "{{$labels.uri}}" }} p95 = {{ "{{$value | humanizeDuration}}" }}
+
+        # DB fallback latency p95 초과 (Redis miss로 인한 RDS 직접 조회 지연)
+        - alert: DbFallbackLatencyHigh
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(api_read_db_fallback_latency_seconds_bucket{service="api-public-read"}[5m])) by (le, endpoint)
+            ) > 2.0
+          for: 1m
+          labels:
+            severity: warning
+            service: api-public-read
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "DB fallback latency 높음 ({{ "{{$labels.endpoint}}" }})"
+            description: "degraded-mode RDS fallback p95 = {{ "{{$value | humanizeDuration}}" }}"

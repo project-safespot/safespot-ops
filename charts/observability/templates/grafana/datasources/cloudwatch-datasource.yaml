@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-cloudwatch
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    {{- include "safespot-observability.datasourceLabel" . | nindent 4 }}
+data:
+  cloudwatch-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: CloudWatch
+        type: cloudwatch
+        uid: cloudwatch
+        access: proxy
+        jsonData:
+          authType: default          # IRSA — Pod의 ServiceAccount에 irsaRoleArn 부착
+          defaultRegion: {{ .Values.cloudwatch.defaultRegion }}
+          tracingDatasourceUid: ""
+        editable: false

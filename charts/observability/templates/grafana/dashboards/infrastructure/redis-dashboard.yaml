@@ -1,0 +1,201 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-redis
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    {{- include "safespot-observability.dashboardLabel" . | nindent 4 }}
+data:
+  redis-dashboard.json: |
+    {
+      "uid": "safespot-redis",
+      "title": "SafeSpot — Redis Infrastructure",
+      "tags": ["safespot", "redis", "infra"],
+      "timezone": "Asia/Seoul",
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+
+        {
+          "id": 1,
+          "title": "Hit Ratio (5m)",
+          "type": "gauge",
+          "gridPos": { "x": 0, "y": 0, "w": 6, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))",
+              "legendFormat": "hit ratio"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0, "max": 1,
+              "thresholds": {
+                "steps": [
+                  { "value": 0,   "color": "red" },
+                  { "value": 0.7, "color": "yellow" },
+                  { "value": 0.9, "color": "green" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 2,
+          "title": "Memory Usage Ratio",
+          "type": "gauge",
+          "gridPos": { "x": 6, "y": 0, "w": 6, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "redis_memory_used_bytes / redis_memory_max_bytes",
+              "legendFormat": "memory ratio"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0, "max": 1,
+              "thresholds": {
+                "steps": [
+                  { "value": 0,    "color": "green" },
+                  { "value": 0.7,  "color": "yellow" },
+                  { "value": 0.85, "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 3,
+          "title": "Connected Clients",
+          "type": "stat",
+          "gridPos": { "x": 12, "y": 0, "w": 6, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "redis_connected_clients",
+              "legendFormat": "clients"
+            }
+          ]
+        },
+
+        {
+          "id": 4,
+          "title": "Blocked Clients",
+          "type": "stat",
+          "gridPos": { "x": 18, "y": 0, "w": 6, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "redis_blocked_clients",
+              "legendFormat": "blocked"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  { "value": 0, "color": "green" },
+                  { "value": 1, "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 5,
+          "title": "Hit / Miss 추이",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 5, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "rate(redis_keyspace_hits_total[1m])",
+              "legendFormat": "hits/sec"
+            },
+            {
+              "expr": "rate(redis_keyspace_misses_total[1m])",
+              "legendFormat": "misses/sec"
+            }
+          ]
+        },
+
+        {
+          "id": 6,
+          "title": "Memory Used (bytes)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 5, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "redis_memory_used_bytes",
+              "legendFormat": "used"
+            },
+            {
+              "expr": "redis_memory_max_bytes",
+              "legendFormat": "max"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+
+        {
+          "id": 7,
+          "title": "Evicted Keys / Expired Keys (rate)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 11, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "rate(redis_evicted_keys_total[1m])",
+              "legendFormat": "evicted/sec"
+            },
+            {
+              "expr": "rate(redis_expired_keys_total[1m])",
+              "legendFormat": "expired/sec"
+            }
+          ]
+        },
+
+        {
+          "id": 8,
+          "title": "Slowlog Length / Rejected Connections",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 11, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "redis_slowlog_length",
+              "legendFormat": "slowlog length"
+            },
+            {
+              "expr": "rate(redis_rejected_connections_total[1m])",
+              "legendFormat": "rejected/sec"
+            }
+          ]
+        },
+
+        {
+          "id": 9,
+          "title": "Uptime (초)",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 17, "w": 6, "h": 3 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "redis_uptime_in_seconds",
+              "legendFormat": "uptime"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        }
+
+      ]
+    }

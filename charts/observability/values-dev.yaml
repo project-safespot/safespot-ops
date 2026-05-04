@@ -1,0 +1,52 @@
+# =============================================================================
+# SafeSpot Observability — values-aws-prod.yaml (prod 환경 override)
+# =============================================================================
+
+global:
+  env: prod
+  clusterName: safespot-eks-prod
+
+kube-prometheus-stack:
+  grafana:
+    adminPassword: ""   # prod: ExternalSecret / AWS Secrets Manager로 주입
+
+  prometheus:
+    prometheusSpec:
+      retention: 30d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            resources:
+              requests:
+                storage: 200Gi
+      resources:
+        requests:
+          cpu: 1000m
+          memory: 4Gi
+        limits:
+          cpu: 4000m
+          memory: 8Gi
+
+cloudwatch:
+  defaultRegion: ap-northeast-2
+  irsaRoleArn: "arn:aws:iam::000000000000:role/safespot-prod-grafana-cloudwatch"
+
+serviceMonitor:
+  interval: "15s"
+
+# prod 환경은 엄격한 임계값 적용
+alerts:
+  api:
+    latencyP95ThresholdSeconds: 0.8
+    errorRateThresholdPercent: 3.0
+    cacheHitRatioMin: 0.85
+  redis:
+    memoryUsageMax: 0.80
+    evictionRateMax: 5
+  worker:
+    dlqMessageMax: 0
+    failureRateMax: 0.02
+    processingDurationP95Seconds: 3.0
+  ingestion:
+    staleSourceMinutes: 5
+    normalizationFailureRateMax: 0.02

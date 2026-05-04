@@ -1,0 +1,188 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-api-core
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    {{- include "safespot-observability.dashboardLabel" . | nindent 4 }}
+data:
+  api-core-dashboard.json: |
+    {
+      "uid": "safespot-api-core",
+      "title": "SafeSpot — api-core",
+      "tags": ["safespot", "api-core"],
+      "timezone": "Asia/Seoul",
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "env",
+            "type": "constant",
+            "query": "{{ .Values.global.env }}"
+          }
+        ]
+      },
+      "panels": [
+
+        {
+          "id": 1,
+          "title": "TPS (요청/초)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 0, "w": 8, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{service=\"api-core\"}[1m])) by (uri)",
+              "legendFormat": "{{ "{{uri}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 2,
+          "title": "Latency p95 / p99 (초)",
+          "type": "timeseries",
+          "gridPos": { "x": 8, "y": 0, "w": 8, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{service=\"api-core\"}[1m])) by (le, uri))",
+              "legendFormat": "p95 {{ "{{uri}}" }}"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{service=\"api-core\"}[1m])) by (le, uri))",
+              "legendFormat": "p99 {{ "{{uri}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 3,
+          "title": "5xx Error Rate (%)",
+          "type": "timeseries",
+          "gridPos": { "x": 16, "y": 0, "w": 8, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "(\n  sum(rate(http_server_requests_seconds_count{service=\"api-core\",status=~\"5..\"}[1m]))\n/\n  sum(rate(http_server_requests_seconds_count{service=\"api-core\"}[1m]))\n) * 100",
+              "legendFormat": "5xx rate %"
+            }
+          ]
+        },
+
+        {
+          "id": 4,
+          "title": "4xx Error Rate (%)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 6, "w": 8, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "(\n  sum(rate(http_server_requests_seconds_count{service=\"api-core\",status=~\"4..\"}[1m]))\n/\n  sum(rate(http_server_requests_seconds_count{service=\"api-core\"}[1m]))\n) * 100",
+              "legendFormat": "4xx rate %"
+            }
+          ]
+        },
+
+        {
+          "id": 5,
+          "title": "Admin Action 성공 / 실패",
+          "type": "timeseries",
+          "gridPos": { "x": 8, "y": 6, "w": 8, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(api_core_admin_action_total{service=\"api-core\"}[1m])) by (action)",
+              "legendFormat": "success {{ "{{action}}" }}"
+            },
+            {
+              "expr": "sum(rate(api_core_admin_action_failed_total{service=\"api-core\"}[1m])) by (action, reason)",
+              "legendFormat": "fail {{ "{{action}}" }}/{{ "{{reason}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 6,
+          "title": "SQS Publish 결과",
+          "type": "timeseries",
+          "gridPos": { "x": 16, "y": 6, "w": 8, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(api_core_sqs_publish_total{service=\"api-core\",result=\"success\"}[1m])) by (event_type)",
+              "legendFormat": "success {{ "{{event_type}}" }}"
+            },
+            {
+              "expr": "sum(rate(api_core_sqs_publish_total{service=\"api-core\",result!=\"success\"}[1m])) by (event_type)",
+              "legendFormat": "fail {{ "{{event_type}}" }}"
+            },
+            {
+              "expr": "sum(rate(api_core_sqs_publish_retry_total{service=\"api-core\"}[1m])) by (event_type)",
+              "legendFormat": "retry {{ "{{event_type}}" }}"
+            },
+            {
+              "expr": "sum(rate(api_core_sqs_publish_permanent_failure_total{service=\"api-core\"}[1m])) by (event_type)",
+              "legendFormat": "permanent_fail {{ "{{event_type}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 7,
+          "title": "입소 / 퇴소 처리 수",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 12, "w": 6, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "increase(api_core_shelter_checkin_total{service=\"api-core\"}[5m])",
+              "legendFormat": "입소 (5m)"
+            },
+            {
+              "expr": "increase(api_core_shelter_checkout_total{service=\"api-core\"}[5m])",
+              "legendFormat": "퇴소 (5m)"
+            }
+          ]
+        },
+
+        {
+          "id": 8,
+          "title": "대피소 운영 현황 (FULL / CROWDED / OPERATING)",
+          "type": "stat",
+          "gridPos": { "x": 6, "y": 12, "w": 6, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "api_core_shelter_full_count{service=\"api-core\"}",
+              "legendFormat": "FULL"
+            },
+            {
+              "expr": "api_core_shelter_crowded_count{service=\"api-core\"}",
+              "legendFormat": "CROWDED"
+            },
+            {
+              "expr": "api_core_shelter_open_count{service=\"api-core\"}",
+              "legendFormat": "OPERATING"
+            }
+          ]
+        },
+
+        {
+          "id": 9,
+          "title": "Login 성공 / 실패",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 12, "w": 12, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(api_core_auth_login_total{service=\"api-core\"}[1m])) by (result, reason)",
+              "legendFormat": "{{ "{{result}}" }} / {{ "{{reason}}" }}"
+            }
+          ]
+        }
+
+      ]
+    }

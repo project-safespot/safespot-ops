@@ -1,0 +1,134 @@
+# =============================================================================
+# SafeSpot Observability — values.yaml (공통 기본값)
+# =============================================================================
+
+global:
+  env: dev
+  region: seoul
+  namespace: monitoring
+  clusterName: safespot-eks
+
+# -----------------------------------------------------------------------------
+# kube-prometheus-stack 서브차트 기본값
+# -----------------------------------------------------------------------------
+kube-prometheus-stack:
+  enabled: true
+
+  prometheus:
+    prometheusSpec:
+      # ServiceMonitor 전체 namespace 감시
+      serviceMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelectorNilUsesHelmValues: false
+      ruleSelectorNilUsesHelmValues: false
+      retention: 15d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 50Gi
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          cpu: 2000m
+          memory: 4Gi
+
+  grafana:
+    enabled: true
+    adminPassword: "changeme"   # values-aws-*.yaml 에서 override
+    persistence:
+      enabled: true
+      size: 10Gi
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: ALL
+      datasources:
+        enabled: true
+        label: grafana_datasource
+        labelValue: "1"
+        searchNamespace: ALL
+    grafana.ini:
+      server:
+        root_url: "https://grafana.safespot.internal"
+      auth.anonymous:
+        enabled: false
+
+  alertmanager:
+    enabled: true
+
+# -----------------------------------------------------------------------------
+# ServiceMonitor 공통 설정
+# -----------------------------------------------------------------------------
+serviceMonitor:
+  interval: "15s"
+  scrapeTimeout: "10s"
+  # 각 서비스 namespace (애플리케이션 배포 namespace)
+  targetNamespace: safespot
+
+# -----------------------------------------------------------------------------
+# 서비스별 레이블 selector (배포 시 실제 label과 일치해야 함)
+# -----------------------------------------------------------------------------
+services:
+  apiCore:
+    name: api-core
+    port: 8080
+    metricsPath: /actuator/prometheus
+    selector:
+      app: api-core
+  apiPublicRead:
+    name: api-public-read
+    port: 8080
+    metricsPath: /actuator/prometheus
+    selector:
+      app: api-public-read
+  externalIngestion:
+    name: external-ingestion
+    port: 8080
+    metricsPath: /actuator/prometheus
+    selector:
+      app: external-ingestion
+  asyncWorker:
+    name: async-worker
+    port: 8080
+    metricsPath: /actuator/prometheus
+    selector:
+      app: async-worker
+  redisExporter:
+    name: redis-exporter
+    port: 9121
+    metricsPath: /metrics
+    selector:
+      app: redis-exporter
+
+# -----------------------------------------------------------------------------
+# CloudWatch datasource (IRSA)
+# -----------------------------------------------------------------------------
+cloudwatch:
+  defaultRegion: ap-northeast-2
+  # IRSA — values-aws-*.yaml 에서 실제 ARN 입력
+  irsaRoleArn: ""
+
+# -----------------------------------------------------------------------------
+# Alert 임계값 (rules/ 에서 참조)
+# -----------------------------------------------------------------------------
+alerts:
+  api:
+    latencyP95ThresholdSeconds: 1.0      # p95 > 1s → alert
+    errorRateThresholdPercent: 5.0       # 5xx rate > 5% → alert
+    cacheHitRatioMin: 0.8               # hit ratio < 80% → alert
+  redis:
+    memoryUsageMax: 0.85                 # memory > 85% → alert
+    evictionRateMax: 10                  # evictions/min > 10 → alert
+  worker:
+    dlqMessageMax: 0                     # DLQ > 0 → alert
+    failureRateMax: 0.05                 # failure rate > 5% → alert
+    processingDurationP95Seconds: 5.0
+  ingestion:
+    staleSourceMinutes: 10              # last success > 10분 → alert
+    normalizationFailureRateMax: 0.05

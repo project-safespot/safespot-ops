@@ -1,0 +1,549 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-system-overview
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    {{- include "safespot-observability.dashboardLabel" . | nindent 4 }}
+data:
+  system-overview-dashboard.json: |
+    {
+      "uid": "safespot-overview",
+      "title": "SafeSpot — System Overview (장애 추적)",
+      "tags": ["safespot", "overview", "oncall"],
+      "timezone": "Asia/Seoul",
+      "refresh": "15s",
+      "time": { "from": "now-30m", "to": "now" },
+      "description": "API → Redis → SQS → Lambda → RDS 전체 흐름. 장애 발생 시 1분 내 원인 파악 목적.",
+      "panels": [
+
+        { "id": 200, "title": "── API Layer ──", "type": "text", "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 } },
+
+        {
+          "id": 1,
+          "title": "전체 TPS",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{service=~\"api-core|api-public-read\"}[1m]))",
+              "legendFormat": "TPS"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+
+        {
+          "id": 2,
+          "title": "api-public-read p95 Latency (초)",
+          "type": "stat",
+          "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{service=\"api-public-read\",uri=~\"/shelters/nearby|/disaster-alerts|/disasters.*\"}[1m])) by (le))",
+              "legendFormat": "p95"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "thresholds": {
+                "steps": [
+                  { "value": 0,   "color": "green" },
+                  { "value": 0.5, "color": "yellow" },
+                  { "value": 1.0, "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 3,
+          "title": "5xx Error Rate (%)",
+          "type": "stat",
+          "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "(\n  sum(rate(http_server_requests_seconds_count{service=~\"api-core|api-public-read\",status=~\"5..\"}[1m]))\n/\n  sum(rate(http_server_requests_seconds_count{service=~\"api-core|api-public-read\"}[1m]))\n) * 100",
+              "legendFormat": "5xx %"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "steps": [
+                  { "value": 0,  "color": "green" },
+                  { "value": 1,  "color": "yellow" },
+                  { "value": 5,  "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 4,
+          "title": "ALB 5xx Count",
+          "type": "stat",
+          "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/ApplicationELB",
+              "metricName": "HTTPCode_ELB_5XX_Count",
+              "dimensions": { "LoadBalancer": "safespot-alb" },
+              "statistic": "Sum",
+              "period": "60",
+              "legendFormat": "ALB 5xx"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  { "value": 0, "color": "green" },
+                  { "value": 1, "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 5,
+          "title": "API Latency p95 추이 (핵심 엔드포인트)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 5, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{service=\"api-public-read\",uri=~\"/shelters/nearby|/disaster-alerts|/disasters.*\"}[1m])) by (le, uri))",
+              "legendFormat": "p95 {{ "{{uri}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 6,
+          "title": "5xx / 4xx Error Rate 추이",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 5, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "(\n  sum(rate(http_server_requests_seconds_count{service=~\"api-core|api-public-read\",status=~\"5..\"}[1m]))\n/\n  sum(rate(http_server_requests_seconds_count{service=~\"api-core|api-public-read\"}[1m]))\n) * 100",
+              "legendFormat": "5xx %"
+            },
+            {
+              "expr": "(\n  sum(rate(http_server_requests_seconds_count{service=~\"api-core|api-public-read\",status=~\"4..\"}[1m]))\n/\n  sum(rate(http_server_requests_seconds_count{service=~\"api-core|api-public-read\"}[1m]))\n) * 100",
+              "legendFormat": "4xx %"
+            }
+          ]
+        },
+
+        { "id": 201, "title": "── Redis Cache Layer ──", "type": "text", "gridPos": { "x": 0, "y": 11, "w": 24, "h": 1 } },
+
+        {
+          "id": 7,
+          "title": "Redis Hit Ratio",
+          "type": "gauge",
+          "gridPos": { "x": 0, "y": 12, "w": 4, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))",
+              "legendFormat": "hit ratio"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "thresholds": {
+                "steps": [
+                  { "value": 0,   "color": "red" },
+                  { "value": 0.7, "color": "yellow" },
+                  { "value": 0.9, "color": "green" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 8,
+          "title": "Redis Memory Usage",
+          "type": "gauge",
+          "gridPos": { "x": 4, "y": 12, "w": 4, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "redis_memory_used_bytes / redis_memory_max_bytes",
+              "legendFormat": "memory ratio"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "thresholds": {
+                "steps": [
+                  { "value": 0,    "color": "green" },
+                  { "value": 0.7,  "color": "yellow" },
+                  { "value": 0.85, "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 9,
+          "title": "DB Fallback 발생 수/분",
+          "type": "stat",
+          "gridPos": { "x": 8, "y": 12, "w": 4, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(api_read_cache_fallback_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "fallback/min"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  { "value": 0,  "color": "green" },
+                  { "value": 1,  "color": "yellow" },
+                  { "value": 10, "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 10,
+          "title": "Redis Evictions/sec",
+          "type": "stat",
+          "gridPos": { "x": 12, "y": 12, "w": 4, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "rate(redis_evicted_keys_total[1m])",
+              "legendFormat": "evictions/sec"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  { "value": 0, "color": "green" },
+                  { "value": 1, "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 11,
+          "title": "Cache Hit/Miss/Fallback 추이",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 16, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(api_read_cache_request_total{service=\"api-public-read\",result=\"hit\"}[1m]))",
+              "legendFormat": "hit/sec"
+            },
+            {
+              "expr": "sum(rate(api_read_cache_request_total{service=\"api-public-read\",result=\"miss\"}[1m]))",
+              "legendFormat": "miss/sec"
+            },
+            {
+              "expr": "sum(rate(api_read_cache_fallback_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "fallback/sec"
+            }
+          ]
+        },
+
+        {
+          "id": 12,
+          "title": "Cache Regeneration — 요청 / 완료 / 실패",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 16, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(cache_regeneration_requested_total[1m])) by (cache_key_family)",
+              "legendFormat": "req {{ "{{cache_key_family}}" }}"
+            },
+            {
+              "expr": "sum(rate(cache_regeneration_completed_total[1m])) by (cache_key_family)",
+              "legendFormat": "done {{ "{{cache_key_family}}" }}"
+            },
+            {
+              "expr": "sum(rate(cache_regeneration_failed_total[1m])) by (cache_key_family)",
+              "legendFormat": "fail {{ "{{cache_key_family}}" }}"
+            }
+          ]
+        },
+
+        { "id": 202, "title": "── SQS / Lambda (Async Worker) ──", "type": "text", "gridPos": { "x": 0, "y": 22, "w": 24, "h": 1 } },
+
+        {
+          "id": 13,
+          "title": "SQS Backlog (Visible)",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 23, "w": 4, "h": 4 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/SQS",
+              "metricName": "ApproximateNumberOfMessagesVisible",
+              "dimensions": { "QueueName": "safespot-cache-refresh" },
+              "statistic": "Maximum",
+              "period": "60",
+              "legendFormat": "backlog"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  { "value": 0,   "color": "green" },
+                  { "value": 100, "color": "yellow" },
+                  { "value": 500, "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 14,
+          "title": "DLQ Messages",
+          "type": "stat",
+          "gridPos": { "x": 4, "y": 23, "w": 4, "h": 4 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/SQS",
+              "metricName": "ApproximateNumberOfMessagesVisible",
+              "dimensions": { "QueueName": "safespot-cache-refresh-dlq" },
+              "statistic": "Maximum",
+              "period": "60",
+              "legendFormat": "DLQ"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  { "value": 0, "color": "green" },
+                  { "value": 1, "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 15,
+          "title": "Lambda Errors / Throttles",
+          "type": "stat",
+          "gridPos": { "x": 8, "y": 23, "w": 4, "h": 4 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": { "FunctionName": "safespot-cache-worker" },
+              "statistic": "Sum",
+              "period": "60",
+              "legendFormat": "errors"
+            },
+            {
+              "namespace": "AWS/Lambda",
+              "metricName": "Throttles",
+              "dimensions": { "FunctionName": "safespot-cache-worker" },
+              "statistic": "Sum",
+              "period": "60",
+              "legendFormat": "throttles"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  { "value": 0, "color": "green" },
+                  { "value": 1, "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 16,
+          "title": "Worker 처리 실패율 (%)",
+          "type": "stat",
+          "gridPos": { "x": 12, "y": 23, "w": 4, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "(\n  sum(rate(worker_failures_total{service=\"async-worker\"}[1m]))\n/\n  sum(rate(worker_processed_total{service=\"async-worker\"}[1m]))\n) * 100",
+              "legendFormat": "fail rate %"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "steps": [
+                  { "value": 0, "color": "green" },
+                  { "value": 2, "color": "yellow" },
+                  { "value": 5, "color": "red" }
+                ]
+              }
+            }
+          }
+        },
+
+        {
+          "id": 17,
+          "title": "SQS Backlog / Oldest Age 추이",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 27, "w": 12, "h": 6 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/SQS",
+              "metricName": "ApproximateNumberOfMessagesVisible",
+              "dimensions": { "QueueName": "safespot-cache-refresh" },
+              "statistic": "Maximum",
+              "period": "60",
+              "legendFormat": "backlog"
+            },
+            {
+              "namespace": "AWS/SQS",
+              "metricName": "ApproximateAgeOfOldestMessage",
+              "dimensions": { "QueueName": "safespot-cache-refresh" },
+              "statistic": "Maximum",
+              "period": "60",
+              "legendFormat": "oldest age (초)"
+            }
+          ]
+        },
+
+        {
+          "id": 18,
+          "title": "Worker 처리 완료 / 실패 추이",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 27, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(worker_processed_total{service=\"async-worker\",result=\"success\"}[1m])) by (event_type)",
+              "legendFormat": "success {{ "{{event_type}}" }}"
+            },
+            {
+              "expr": "sum(rate(worker_failures_total{service=\"async-worker\"}[1m])) by (event_type, reason)",
+              "legendFormat": "fail {{ "{{event_type}}" }}/{{ "{{reason}}" }}"
+            }
+          ]
+        },
+
+        { "id": 203, "title": "── RDS (DB Layer) ──", "type": "text", "gridPos": { "x": 0, "y": 33, "w": 24, "h": 1 } },
+
+        {
+          "id": 19,
+          "title": "RDS CPU (%)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 34, "w": 8, "h": 5 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/RDS",
+              "metricName": "CPUUtilization",
+              "dimensions": { "DBClusterIdentifier": "safespot-aurora" },
+              "statistic": "Average",
+              "period": "60",
+              "legendFormat": "RDS CPU %"
+            }
+          ]
+        },
+
+        {
+          "id": 20,
+          "title": "RDS Connections",
+          "type": "timeseries",
+          "gridPos": { "x": 8, "y": 34, "w": 8, "h": 5 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/RDS",
+              "metricName": "DatabaseConnections",
+              "dimensions": { "DBClusterIdentifier": "safespot-aurora" },
+              "statistic": "Average",
+              "period": "60",
+              "legendFormat": "connections"
+            }
+          ]
+        },
+
+        {
+          "id": 21,
+          "title": "RDS Read / Write Latency + DB Fallback Query",
+          "type": "timeseries",
+          "gridPos": { "x": 16, "y": 34, "w": 8, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(api_read_db_fallback_query_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "fallback query/min (prometheus)"
+            }
+          ]
+        },
+
+        { "id": 204, "title": "── Ingestion Layer ──", "type": "text", "gridPos": { "x": 0, "y": 39, "w": 24, "h": 1 } },
+
+        {
+          "id": 22,
+          "title": "Source별 Last Success 경과 시간 (초)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 40, "w": 12, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "time() - ingestion_last_success_timestamp{service=\"external-ingestion\"}",
+              "legendFormat": "stale {{ "{{source}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 23,
+          "title": "Ingestion 실패 / 정규화 실패",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 40, "w": 12, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(ingestion_external_api_failure_total{service=\"external-ingestion\"}[5m])) by (source)",
+              "legendFormat": "api_fail {{ "{{source}}" }}"
+            },
+            {
+              "expr": "sum(rate(ingestion_normalization_failure_total{service=\"external-ingestion\"}[5m])) by (source, reason)",
+              "legendFormat": "norm_fail {{ "{{source}}" }}/{{ "{{reason}}" }}"
+            }
+          ]
+        }
+
+      ]
+    }

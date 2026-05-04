@@ -1,0 +1,42 @@
+# =============================================================================
+# SafeSpot Observability — values-aws-dev.yaml (dev 환경 override)
+# =============================================================================
+
+global:
+  env: dev
+  clusterName: safespot-eks-dev
+
+kube-prometheus-stack:
+  grafana:
+    adminPassword: "safespot-dev-grafana"   # 실제 운영 시 Secret으로 교체
+
+  prometheus:
+    prometheusSpec:
+      retention: 7d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            resources:
+              requests:
+                storage: 20Gi
+
+cloudwatch:
+  defaultRegion: ap-northeast-2
+  # dev 전용 IRSA Role ARN — 실제 ARN으로 교체
+  irsaRoleArn: "arn:aws:iam::123456789012:role/safespot-dev-grafana-cloudwatch"
+
+serviceMonitor:
+  interval: "30s"       # dev는 느리게 scrape
+
+# dev 환경은 alert 임계값 완화
+alerts:
+  api:
+    latencyP95ThresholdSeconds: 2.0
+    errorRateThresholdPercent: 10.0
+  redis:
+    memoryUsageMax: 0.90
+  worker:
+    dlqMessageMax: 5
+    processingDurationP95Seconds: 10.0
+  ingestion:
+    staleSourceMinutes: 30

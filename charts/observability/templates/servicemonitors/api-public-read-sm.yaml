@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: api-public-read
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api-public-read
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.serviceMonitor.targetNamespace }}
+  selector:
+    matchLabels:
+      {{- toYaml .Values.services.apiPublicRead.selector | nindent 6 }}
+  endpoints:
+    - port: http
+      path: {{ .Values.services.apiPublicRead.metricsPath }}
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+      # 주요 메트릭: http.server.requests, api_read_cache_*, api_read_db_fallback_*,
+      #             cache_hit_total, cache_miss_total, cache_regeneration_*

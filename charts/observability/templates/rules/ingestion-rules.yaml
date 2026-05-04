@@ -1,0 +1,93 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: safespot-ingestion-rules
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: safespot.ingestion
+      interval: 60s
+      rules:
+
+        # Source별 last success 경과 시간 초과 — stale 수집
+        - alert: IngestionSourceStale
+          expr: |
+            (time() - ingestion_last_success_timestamp{service="external-ingestion"})
+            > {{ mul .Values.alerts.ingestion.staleSourceMinutes 60 }}
+          for: 2m
+          labels:
+            severity: warning
+            service: external-ingestion
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Ingestion source stale ({{ "{{$labels.source}}" }})"
+            description: |
+              {{ "{{$labels.source}}" }} 마지막 성공 후 {{ "{{$value | humanizeDuration}}" }} 경과
+              임계값: {{ .Values.alerts.ingestion.staleSourceMinutes }}분
+
+        # 외부 API 호출 실패율 급증
+        - alert: IngestionExternalApiFailureHigh
+          expr: |
+            (
+              sum(rate(ingestion_external_api_failure_total{service="external-ingestion"}[5m])) by (source)
+            /
+              sum(rate(ingestion_external_api_call_total{service="external-ingestion"}[5m])) by (source)
+            ) > 0.3
+          for: 3m
+          labels:
+            severity: warning
+            service: external-ingestion
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "외부 API 실패율 높음 ({{ "{{$labels.source}}" }})"
+            description: "fail rate = {{ "{{$value | humanizePercentage}}" }}"
+
+        # 정규화 실패율 초과
+        - alert: IngestionNormalizationFailureHigh
+          expr: |
+            (
+              sum(rate(ingestion_records_failed_total{service="external-ingestion"}[5m])) by (source)
+            /
+              (
+                sum(rate(ingestion_records_normalized_total{service="external-ingestion"}[5m])) by (source)
+                + sum(rate(ingestion_records_failed_total{service="external-ingestion"}[5m])) by (source)
+              )
+            ) > {{ .Values.alerts.ingestion.normalizationFailureRateMax }}
+          for: 3m
+          labels:
+            severity: warning
+            service: external-ingestion
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "정규화 실패율 높음 ({{ "{{$labels.source}}" }})"
+            description: "fail rate = {{ "{{$value | humanizePercentage}}" }} (임계값: {{ .Values.alerts.ingestion.normalizationFailureRateMax }})"
+
+        # Rate limit 초과 발생 — quota 소진 위험
+        - alert: IngestionRateLimitExceeded
+          expr: |
+            sum(rate(ingestion_external_api_rate_limit_exceeded_total{service="external-ingestion"}[5m])) by (source) > 0
+          for: 1m
+          labels:
+            severity: warning
+            service: external-ingestion
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "외부 API rate limit 초과 ({{ "{{$labels.source}}" }})"
+            description: "일일 quota 소진 위험. source={{ "{{$labels.source}}" }}"
+
+        # SQS publish 실패 — downstream rebuild 중단 위험
+        - alert: IngestionSqsPublishFailure
+          expr: |
+            sum(rate(ingestion_sqs_publish_failure_total{service="external-ingestion"}[5m])) by (source, event_type) > 0
+          for: 2m
+          labels:
+            severity: critical
+            service: external-ingestion
+            {{- include "safespot-observability.alertLabels" . | nindent 12 }}
+          annotations:
+            summary: "Ingestion SQS publish 실패 ({{ "{{$labels.source}}" }})"
+            description: "event_type={{ "{{$labels.event_type}}" }}"

@@ -1,0 +1,120 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+data:
+  alertmanager.yaml: |
+    global:
+      # Slack webhook — values-aws-*.yaml 또는 Secret으로 주입
+      slack_api_url: "${SLACK_WEBHOOK_URL}"
+      resolve_timeout: 5m
+
+    # ==========================================================================
+    # Routing 트리
+    # ==========================================================================
+    route:
+      receiver: default-slack
+      group_by: [alertname, service, env]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+      routes:
+        # severity=critical → 즉시 전송, repeat 1h
+        - match:
+            severity: critical
+          receiver: critical-slack
+          group_wait: 10s
+          repeat_interval: 1h
+
+        # DLQ 전용 라우팅
+        - match:
+            alertname: WorkerDlqMessageDetected
+          receiver: oncall-pagerduty
+          group_wait: 10s
+          repeat_interval: 30m
+
+        # Redis critical
+        - match_re:
+            alertname: "RedisRejectedConnections|RedisMemoryUsageHigh"
+            severity: critical
+          receiver: critical-slack
+          repeat_interval: 1h
+
+        # Ingestion stale — 운영팀 채널
+        - match:
+            alertname: IngestionSourceStale
+          receiver: ingestion-slack
+          repeat_interval: 30m
+
+    # ==========================================================================
+    # Inhibit 규칙 — 상위 장애 시 하위 alert 억제
+    # ==========================================================================
+    inhibit_rules:
+      # Redis down 시 cache hit ratio, DB fallback alert 억제
+      - source_match:
+          alertname: RedisRejectedConnections
+        target_match_re:
+          alertname: "CacheHitRatioLow|RedisFallbackSpiking|DbFallbackQuerySpiking"
+        equal: [env]
+
+      # API critical 5xx 시 latency warning 억제
+      - source_match:
+          alertname: ApiErrorRateHigh
+          severity: critical
+        target_match:
+          alertname: ApiPublicReadLatencyHigh
+          severity: warning
+        equal: [env]
+
+    # ==========================================================================
+    # Receivers
+    # ==========================================================================
+    receivers:
+
+      - name: default-slack
+        slack_configs:
+          - channel: "#safespot-alerts-{{ .Values.global.env }}"
+            send_resolved: true
+            title: '[{{ "{{ .Status | toUpper }}" }}] {{ "{{ .CommonLabels.alertname }}" }}'
+            text: |
+              *서비스*: {{ "{{ .CommonLabels.service }}" }}
+              *환경*: {{ .Values.global.env }}
+              {{ "{{ range .Alerts }}" }}
+              *Alert*: {{ "{{ .Annotations.summary }}" }}
+              {{ "{{ .Annotations.description }}" }}
+              {{ "{{ end }}" }}
+
+      - name: critical-slack
+        slack_configs:
+          - channel: "#safespot-critical-{{ .Values.global.env }}"
+            send_resolved: true
+            title: '🚨 [CRITICAL] {{ "{{ .CommonLabels.alertname }}" }}'
+            text: |
+              *서비스*: {{ "{{ .CommonLabels.service }}" }}
+              *환경*: {{ .Values.global.env }}
+              {{ "{{ range .Alerts }}" }}
+              {{ "{{ .Annotations.summary }}" }}
+              {{ "{{ .Annotations.description }}" }}
+              {{ "{{ end }}" }}
+
+      - name: ingestion-slack
+        slack_configs:
+          - channel: "#safespot-ingestion-{{ .Values.global.env }}"
+            send_resolved: true
+            title: '[INGESTION] {{ "{{ .CommonLabels.alertname }}" }}'
+            text: |
+              {{ "{{ range .Alerts }}" }}
+              {{ "{{ .Annotations.summary }}" }}
+              {{ "{{ .Annotations.description }}" }}
+              {{ "{{ end }}" }}
+
+      # PagerDuty — DLQ / 데이터 유실 위험 상황
+      - name: oncall-pagerduty
+        pagerduty_configs:
+          - routing_key: "${PAGERDUTY_ROUTING_KEY}"
+            description: '{{ "{{ .CommonLabels.alertname }}" }} — {{ "{{ .CommonAnnotations.summary }}" }}'
+            severity: critical

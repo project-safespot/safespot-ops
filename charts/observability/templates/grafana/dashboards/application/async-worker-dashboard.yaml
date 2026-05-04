@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-async-worker
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "safespot-observability.labels" . | nindent 4 }}
+    {{- include "safespot-observability.dashboardLabel" . | nindent 4 }}
+data:
+  async-worker-dashboard.json: |
+    {
+      "uid": "safespot-async-worker",
+      "title": "SafeSpot — async-worker",
+      "tags": ["safespot", "async-worker", "sqs", "lambda"],
+      "timezone": "Asia/Seoul",
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+
+        {
+          "id": 1,
+          "title": "처리 완료 수 (event_type / result)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(worker_processed_total{service=\"async-worker\"}[1m])) by (event_type, result)",
+              "legendFormat": "{{ "{{event_type}}" }}/{{ "{{result}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 2,
+          "title": "처리 실패 수 (event_type / reason)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(worker_failures_total{service=\"async-worker\"}[1m])) by (event_type, reason)",
+              "legendFormat": "{{ "{{event_type}}" }}/{{ "{{reason}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 3,
+          "title": "처리 Latency p95 / p99 (event_type별, 초)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 6, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(worker_processing_duration_seconds_bucket{service=\"async-worker\"}[1m])) by (le, event_type))",
+              "legendFormat": "p95 {{ "{{event_type}}" }}"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(worker_processing_duration_seconds_bucket{service=\"async-worker\"}[1m])) by (le, event_type))",
+              "legendFormat": "p99 {{ "{{event_type}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 4,
+          "title": "Redis Write 결과 (operation / result)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 6, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(worker_redis_write_total{service=\"async-worker\"}[1m])) by (event_type, operation, result)",
+              "legendFormat": "{{ "{{operation}}" }}/{{ "{{result}}" }} ({{ "{{event_type}}" }})"
+            }
+          ]
+        },
+
+        {
+          "id": 5,
+          "title": "Cache Regeneration — 요청 / 완료 / 실패 (cache_key_family)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 12, "w": 16, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(cache_regeneration_requested_total{service=\"async-worker\"}[1m])) by (cache_key_family)",
+              "legendFormat": "requested {{ "{{cache_key_family}}" }}"
+            },
+            {
+              "expr": "sum(rate(cache_regeneration_completed_total{service=\"async-worker\"}[1m])) by (cache_key_family)",
+              "legendFormat": "completed {{ "{{cache_key_family}}" }}"
+            },
+            {
+              "expr": "sum(rate(cache_regeneration_failed_total{service=\"async-worker\"}[1m])) by (cache_key_family, reason)",
+              "legendFormat": "failed {{ "{{cache_key_family}}" }}/{{ "{{reason}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 6,
+          "title": "Idempotency Skip / Partial Batch Failure",
+          "type": "timeseries",
+          "gridPos": { "x": 16, "y": 12, "w": 8, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(worker_idempotency_skipped_total{service=\"async-worker\"}[1m])) by (event_type)",
+              "legendFormat": "idempotency_skip {{ "{{event_type}}" }}"
+            },
+            {
+              "expr": "sum(rate(worker_partial_batch_failure_total{service=\"async-worker\"}[1m])) by (event_type)",
+              "legendFormat": "partial_batch_fail {{ "{{event_type}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 7,
+          "title": "DLQ 전송 수 (event_type / reason)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 18, "w": 12, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(worker_dlq_publish_total{service=\"async-worker\"}[1m])) by (event_type, reason)",
+              "legendFormat": "dlq {{ "{{event_type}}" }}/{{ "{{reason}}" }}"
+            }
+          ]
+        },
+
+        {
+          "id": 8,
+          "title": "Batch Size 분포",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 18, "w": 12, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(worker_batch_size_bucket{service=\"async-worker\"}[1m])) by (le, queue_name))",
+              "legendFormat": "p50 {{ "{{queue_name}}" }}"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(worker_batch_size_bucket{service=\"async-worker\"}[1m])) by (le, queue_name))",
+              "legendFormat": "p99 {{ "{{queue_name}}" }}"
+            }
+          ]
+        }
+
+      ]
+    }
