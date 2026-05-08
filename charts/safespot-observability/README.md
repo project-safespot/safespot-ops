@@ -83,21 +83,55 @@ helm upgrade --install safespot-observability charts/safespot-observability \
   -f charts/safespot-observability/values-dev.infra.generated.yaml
 ```
 
-## ArgoCD 연동
+## ArgoCD 배포 (EKS dev)
 
-ArgoCD Application에서 values file 순서를 다음과 같이 맞추세요.
+ArgoCD Application manifest: `argocd/applications/observability-dev.yaml`
 
-```yaml
-spec:
-  source:
-    helm:
-      valueFiles:
-        - values-dev-eks.yaml
-        - values-dev.infra.generated.yaml
+### 사전 조건
+
+1. **`values-dev.infra.generated.yaml` Git 커밋 필수** — ArgoCD는 Git에서 파일을 읽으므로 반드시 커밋되어 있어야 합니다.
+   ```bash
+   AWS_PROFILE=<profile> ./scripts/render-dev-values.sh
+   git add charts/safespot-observability/values-dev.infra.generated.yaml
+   git commit -m "chore: update dev infra generated values"
+   git push
+   ```
+
+2. **ArgoCD `safespot` project 생성** — ArgoCD에 `safespot` project가 없는 경우 먼저 생성하세요.
+   ```bash
+   argocd proj create safespot \
+     --src https://github.com/project-safespot/safespot-ops.git \
+     --dest https://kubernetes.default.svc,monitoring \
+     --dest https://kubernetes.default.svc,argocd
+   ```
+
+### Application 등록 및 첫 배포
+
+```bash
+# Application 등록
+kubectl apply -f argocd/applications/observability-dev.yaml
+
+# 첫 번째 sync — kube-prometheus-stack CRD 설치
+argocd app sync safespot-observability-dev
+
+# CRD 설치 후 두 번째 sync — CRD에 의존하는 리소스(PrometheusRule, ServiceMonitor 등) 생성
+argocd app sync safespot-observability-dev
 ```
 
-`values-dev.infra.generated.yaml`은 ArgoCD가 읽는 Git 레포에 커밋되어 있어야 합니다.
-CI/CD 파이프라인에서 `render-dev-values.sh`를 실행하고 결과를 커밋하는 구조로 사용하세요.
+> **2회 sync 필요**: `kube-prometheus-stack`의 CRD(PrometheusRule, ServiceMonitor 등)는 첫 번째 sync에서 설치되고,
+> 해당 CRD를 사용하는 리소스는 두 번째 sync에서 정상 적용됩니다.
+> ArgoCD UI에서 첫 번째 sync 후 일부 리소스가 `OutOfSync` 또는 `SyncFailed` 상태로 남아 있으면 한 번 더 sync하세요.
+
+### 이후 인프라 값 갱신 시
+
+```bash
+AWS_PROFILE=<profile> ./scripts/render-dev-values.sh
+git add charts/safespot-observability/values-dev.infra.generated.yaml
+git commit -m "chore: update dev infra generated values"
+git push
+# ArgoCD auto-sync 미설정 시 수동 sync:
+argocd app sync safespot-observability-dev
+```
 
 ## EKS 배포 후 확인 항목
 
