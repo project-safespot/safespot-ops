@@ -1,0 +1,13 @@
+# ---------------------------------------------------------------------------
+# safespot-ops .gitignore
+# ---------------------------------------------------------------------------
+
+# Generated Helm values — SSM 기반 인프라 식별자 포함.
+# GitOps 운용 방침:
+#   - ArgoCD가 이 파일을 Git에서 직접 읽는다면: 이 줄을 제거하고 CI에서 커밋
+#   - 로컬 생성물로 관리한다면: 이 줄을 유지
+charts/safespot-observability/values-*.infra.generated.yaml
+
+# Helm chart cache (다운로드된 subchart archive는 커밋 여부 선택)
+# 커밋하지 않으면 배포 전 helm dependency build 필요
+# charts/safespot-observability/charts/*.tgz

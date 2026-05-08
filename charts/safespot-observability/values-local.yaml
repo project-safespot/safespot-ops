@@ -1,0 +1,35 @@
+# SafeSpot Observability - values-local.yaml
+# 로컬 테스트용 오버라이드.
+# 주의: 평문 비밀 정보(adminPassword 등)가 포함되어 있으므로 git commit 시 주의.
+
+kube-prometheus-stack:
+  grafana:
+    adminPassword: admin1234
+    service:
+      type: LoadBalancer
+
+  prometheus:
+    service:
+      type: LoadBalancer
+
+  alertmanager:
+    service:
+      type: LoadBalancer
+    alertmanagerSpec:
+      storage:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: local-path
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 2Gi
+
+redisExporter:
+  enabled: false
+
+yace:
+  enabled: false
+
+redisExporterExternalServiceMonitor:
+  enabled: false

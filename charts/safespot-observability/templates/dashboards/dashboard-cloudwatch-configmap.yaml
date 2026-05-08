@@ -1,0 +1,300 @@
+{{- if .Values.safespot.dashboards.cloudwatchRaw.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-cloudwatch
+  namespace: {{ .Values.safespot.namespace.monitoring }}
+  labels:
+    grafana_dashboard: "1"
+    env: {{ .Values.safespot.env }}
+    region: {{ .Values.safespot.region }}
+data:
+  cloudwatch.json: |
+    {
+      "uid": "safespot-cloudwatch",
+      "title": "SafeSpot — CloudWatch (RDS / SQS / Lambda)",
+      "tags": ["safespot", "cloudwatch", "aws", "infra"],
+      "timezone": "Asia/Seoul",
+      "refresh": "60s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        { "id": 100, "title": "── RDS Aurora ──", "type": "text", "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "options": { "mode": "markdown" } },
+        {
+          "id": 1,
+          "title": "RDS CPU Utilization (%)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 1, "w": 8, "h": 6 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [{
+            "namespace": "AWS/RDS",
+            "metricName": "CPUUtilization",
+            "dimensions": { "DBClusterIdentifier": "{{ .Values.safespot.aws.rds.dbClusterIdentifier }}" },
+            "statistic": "Average",
+            "period": "60",
+            "legendFormat": "CPU %"
+          }]
+        },
+        {
+          "id": 2,
+          "title": "RDS DB Connections",
+          "type": "timeseries",
+          "gridPos": { "x": 8, "y": 1, "w": 8, "h": 6 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [{
+            "namespace": "AWS/RDS",
+            "metricName": "DatabaseConnections",
+            "dimensions": { "DBClusterIdentifier": "{{ .Values.safespot.aws.rds.dbClusterIdentifier }}" },
+            "statistic": "Average",
+            "period": "60",
+            "legendFormat": "connections"
+          }]
+        },
+        {
+          "id": 3,
+          "title": "RDS Read / Write Latency (ms)",
+          "type": "timeseries",
+          "gridPos": { "x": 16, "y": 1, "w": 8, "h": 6 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/RDS",
+              "metricName": "ReadLatency",
+              "dimensions": { "DBClusterIdentifier": "{{ .Values.safespot.aws.rds.dbClusterIdentifier }}" },
+              "statistic": "Average",
+              "period": "60",
+              "legendFormat": "read latency"
+            },
+            {
+              "namespace": "AWS/RDS",
+              "metricName": "WriteLatency",
+              "dimensions": { "DBClusterIdentifier": "{{ .Values.safespot.aws.rds.dbClusterIdentifier }}" },
+              "statistic": "Average",
+              "period": "60",
+              "legendFormat": "write latency"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "RDS Replica Lag / Freeable Memory",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 7, "w": 12, "h": 5 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/RDS",
+              "metricName": "AuroraReplicaLag",
+              "dimensions": { "DBClusterIdentifier": "{{ .Values.safespot.aws.rds.dbClusterIdentifier }}" },
+              "statistic": "Maximum",
+              "period": "60",
+              "legendFormat": "replica lag"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "RDS Free Memory (bytes)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 7, "w": 12, "h": 5 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [{
+            "namespace": "AWS/RDS",
+            "metricName": "FreeableMemory",
+            "dimensions": { "DBClusterIdentifier": "{{ .Values.safespot.aws.rds.dbClusterIdentifier }}" },
+            "statistic": "Average",
+            "period": "60",
+            "legendFormat": "freeable memory"
+          }],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        { "id": 101, "title": "── SQS ──", "type": "text", "gridPos": { "x": 0, "y": 12, "w": 24, "h": 1 }, "options": { "mode": "markdown" } },
+        {
+          "id": 6,
+          "title": "SQS Visible Messages (Backlog)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 13, "w": 8, "h": 6 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/SQS",
+              "metricName": "ApproximateNumberOfMessagesVisible",
+              "dimensions": { "QueueName": "{{ .Values.safespot.aws.sqs.cacheRefreshQueueName }}" },
+              "statistic": "Maximum",
+              "period": "60",
+              "legendFormat": "cache-refresh"
+            },
+            {
+              "namespace": "AWS/SQS",
+              "metricName": "ApproximateNumberOfMessagesVisible",
+              "dimensions": { "QueueName": "{{ .Values.safespot.aws.sqs.readmodelRefreshQueueName }}" },
+              "statistic": "Maximum",
+              "period": "60",
+              "legendFormat": "readmodel-refresh"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "SQS Oldest Message Age (초)",
+          "type": "timeseries",
+          "gridPos": { "x": 8, "y": 13, "w": 8, "h": 6 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [{
+            "namespace": "AWS/SQS",
+            "metricName": "ApproximateAgeOfOldestMessage",
+            "dimensions": { "QueueName": "{{ .Values.safespot.aws.sqs.cacheRefreshQueueName }}" },
+            "statistic": "Maximum",
+            "period": "60",
+            "legendFormat": "age (cache-refresh)"
+          }]
+        },
+        {
+          "id": 8,
+          "title": "SQS Sent / Deleted",
+          "type": "timeseries",
+          "gridPos": { "x": 16, "y": 13, "w": 8, "h": 6 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/SQS",
+              "metricName": "NumberOfMessagesSent",
+              "dimensions": { "QueueName": "{{ .Values.safespot.aws.sqs.cacheRefreshQueueName }}" },
+              "statistic": "Sum",
+              "period": "60",
+              "legendFormat": "sent"
+            },
+            {
+              "namespace": "AWS/SQS",
+              "metricName": "NumberOfMessagesDeleted",
+              "dimensions": { "QueueName": "{{ .Values.safespot.aws.sqs.cacheRefreshQueueName }}" },
+              "statistic": "Sum",
+              "period": "60",
+              "legendFormat": "deleted"
+            }
+          ]
+        },
+        {{- $crDlq := .Values.safespot.aws.sqs.cacheRefreshDlqName }}
+        {{- $rmDlq := .Values.safespot.aws.sqs.readmodelRefreshDlqName }}
+        {{- $ecDlq := .Values.safespot.aws.sqs.environmentCacheRefreshDlqName }}
+        {{- if or $crDlq $rmDlq $ecDlq }}
+        { "id": 103, "title": "── DLQ ──", "type": "text", "gridPos": { "x": 0, "y": 19, "w": 24, "h": 1 }, "options": { "mode": "markdown" } },
+        {
+          "id": 9,
+          "title": "DLQ Visible Messages",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 20, "w": 12, "h": 5 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {{- $sep := "" }}
+            {{- if $crDlq }}
+            {{ $sep }}{ "namespace": "AWS/SQS", "metricName": "ApproximateNumberOfMessagesVisible", "dimensions": { "QueueName": "{{ $crDlq }}" }, "statistic": "Maximum", "period": "60", "legendFormat": "cache-refresh-dlq" }
+            {{- $sep = "," }}
+            {{- end }}
+            {{- if $rmDlq }}
+            {{ $sep }}{ "namespace": "AWS/SQS", "metricName": "ApproximateNumberOfMessagesVisible", "dimensions": { "QueueName": "{{ $rmDlq }}" }, "statistic": "Maximum", "period": "60", "legendFormat": "readmodel-refresh-dlq" }
+            {{- $sep = "," }}
+            {{- end }}
+            {{- if $ecDlq }}
+            {{ $sep }}{ "namespace": "AWS/SQS", "metricName": "ApproximateNumberOfMessagesVisible", "dimensions": { "QueueName": "{{ $ecDlq }}" }, "statistic": "Maximum", "period": "60", "legendFormat": "environment-cache-refresh-dlq" }
+            {{- end }}
+          ]
+        },
+        {
+          "id": 10,
+          "title": "DLQ Oldest Message Age (초)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 20, "w": 12, "h": 5 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {{- $sep2 := "" }}
+            {{- if $crDlq }}
+            {{ $sep2 }}{ "namespace": "AWS/SQS", "metricName": "ApproximateAgeOfOldestMessage", "dimensions": { "QueueName": "{{ $crDlq }}" }, "statistic": "Maximum", "period": "60", "legendFormat": "cache-refresh-dlq" }
+            {{- $sep2 = "," }}
+            {{- end }}
+            {{- if $rmDlq }}
+            {{ $sep2 }}{ "namespace": "AWS/SQS", "metricName": "ApproximateAgeOfOldestMessage", "dimensions": { "QueueName": "{{ $rmDlq }}" }, "statistic": "Maximum", "period": "60", "legendFormat": "readmodel-refresh-dlq" }
+            {{- $sep2 = "," }}
+            {{- end }}
+            {{- if $ecDlq }}
+            {{ $sep2 }}{ "namespace": "AWS/SQS", "metricName": "ApproximateAgeOfOldestMessage", "dimensions": { "QueueName": "{{ $ecDlq }}" }, "statistic": "Maximum", "period": "60", "legendFormat": "environment-cache-refresh-dlq" }
+            {{- end }}
+          ]
+        },
+        {{- end }}
+        { "id": 102, "title": "── Lambda ──", "type": "text", "gridPos": { "x": 0, "y": {{ if or $crDlq $rmDlq $ecDlq }}25{{ else }}19{{ end }}, "w": 24, "h": 1 }, "options": { "mode": "markdown" } },
+        {
+          "id": 11,
+          "title": "Lambda Invocations / Errors / Throttles",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": {{ if or $crDlq $rmDlq $ecDlq }}26{{ else }}20{{ end }}, "w": 12, "h": 6 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/Lambda",
+              "metricName": "Invocations",
+              "dimensions": { "FunctionName": "{{ .Values.safespot.aws.lambda.asyncWorkerFunctionName }}" },
+              "statistic": "Sum",
+              "period": "60",
+              "legendFormat": "invocations"
+            },
+            {
+              "namespace": "AWS/Lambda",
+              "metricName": "Errors",
+              "dimensions": { "FunctionName": "{{ .Values.safespot.aws.lambda.asyncWorkerFunctionName }}" },
+              "statistic": "Sum",
+              "period": "60",
+              "legendFormat": "errors"
+            },
+            {
+              "namespace": "AWS/Lambda",
+              "metricName": "Throttles",
+              "dimensions": { "FunctionName": "{{ .Values.safespot.aws.lambda.asyncWorkerFunctionName }}" },
+              "statistic": "Sum",
+              "period": "60",
+              "legendFormat": "throttles"
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "title": "Lambda Duration p95 / Max (ms)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": {{ if or $crDlq $rmDlq $ecDlq }}26{{ else }}20{{ end }}, "w": 12, "h": 6 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [
+            {
+              "namespace": "AWS/Lambda",
+              "metricName": "Duration",
+              "dimensions": { "FunctionName": "{{ .Values.safespot.aws.lambda.asyncWorkerFunctionName }}" },
+              "statistic": "p95",
+              "period": "60",
+              "legendFormat": "p95 duration"
+            },
+            {
+              "namespace": "AWS/Lambda",
+              "metricName": "Duration",
+              "dimensions": { "FunctionName": "{{ .Values.safespot.aws.lambda.asyncWorkerFunctionName }}" },
+              "statistic": "Maximum",
+              "period": "60",
+              "legendFormat": "max duration"
+            }
+          ]
+        },
+        {
+          "id": 13,
+          "title": "Lambda ConcurrentExecutions",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": {{ if or $crDlq $rmDlq $ecDlq }}32{{ else }}26{{ end }}, "w": 12, "h": 5 },
+          "datasource": { "uid": "cloudwatch" },
+          "targets": [{
+            "namespace": "AWS/Lambda",
+            "metricName": "ConcurrentExecutions",
+            "dimensions": { "FunctionName": "{{ .Values.safespot.aws.lambda.asyncWorkerFunctionName }}" },
+            "statistic": "Maximum",
+            "period": "60",
+            "legendFormat": "concurrent"
+          }]
+        }
+      ]
+    }
+{{- end }}

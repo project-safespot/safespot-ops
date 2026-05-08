@@ -1,22 +1,22 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: external-ingestion
+  name: async-worker
   namespace: {{ .Values.safespot.namespace.monitoring }}
   labels:
     release: kube-prometheus-stack
-    app: external-ingestion
+    app: async-worker
     env: {{ .Values.safespot.env }}
     region: {{ .Values.safespot.region }}
 spec:
   selector:
     matchLabels:
-      app: external-ingestion
+      app: async-worker
       env: {{ .Values.safespot.env }}
   namespaceSelector:
     matchNames:
       - {{ .Values.safespot.namespace.application }}
   endpoints:
-    - port: {{ .Values.safespot.metrics.externalIngestion.port }}
-      path: {{ .Values.safespot.metrics.externalIngestion.path }}
-      interval: {{ .Values.safespot.metrics.externalIngestion.interval }}
+    - port: {{ .Values.safespot.metrics.asyncWorker.port }}
+      path: {{ .Values.safespot.metrics.asyncWorker.path }}
+      interval: {{ .Values.safespot.metrics.asyncWorker.interval }}

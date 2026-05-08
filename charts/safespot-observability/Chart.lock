@@ -1,0 +1,12 @@
+dependencies:
+- name: kube-prometheus-stack
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 84.0.0
+- name: prometheus-redis-exporter
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 6.23.0
+- name: yet-another-cloudwatch-exporter
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 0.39.1
+digest: sha256:300031bda862a5f95642343959c8e710e8bfa2f3c6b9abfaea3a74fb3de2fe9f
+generated: "2026-05-07T22:20:29.54783314+09:00"

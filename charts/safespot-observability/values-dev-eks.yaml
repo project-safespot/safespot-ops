@@ -1,0 +1,433 @@
+# SafeSpot Observability - values-dev-eks.yaml
+# EKS dev 전용 설정. 인프라 식별자(endpoint, ARN)는 포함하지 않습니다.
+#
+# 실제 배포 시 반드시 values-dev.infra.generated.yaml을 함께 사용하세요:
+#   AWS_PROFILE=<profile> ./scripts/render-dev-values.sh
+#   helm install ... \
+#     -f charts/safespot-observability/values-dev-eks.yaml \
+#     -f charts/safespot-observability/values-dev.infra.generated.yaml
+#
+# 인프라 식별자(values-dev.infra.generated.yaml에서 주입됨):
+#   - redisExporter.redisAddress        → SSM: /safespot/dev/data/redis-primary-endpoint + redis-port
+#   - yace.serviceAccount.annotations   → SSM: /safespot/dev/observability/yace/irsa-role-arn
+#   - grafana.serviceAccount.annotations → SSM: /safespot/dev/observability/grafana/irsa-role-arn (optional)
+#   - safespot.aws.sqs.*               → SSM: /safespot/dev/async-worker/*-queue-url (basename 파싱)
+#
+# Grafana admin credential (ExternalSecret이 SSM에서 자동 동기화):
+#   - /safespot/dev/observability/grafana/admin-user
+#   - /safespot/dev/observability/grafana/admin-password
+
+kube-prometheus-stack:
+  grafana:
+    # adminPassword 평문 없음.
+    # ExternalSecret(safespot.externalSecrets.grafanaAdmin)이 SSM에서 grafana-admin-credentials를 동기화합니다.
+    admin:
+      existingSecret: "grafana-admin-credentials"
+      userKey: admin-user
+      passwordKey: admin-password
+    serviceAccount:
+      create: true
+      name: safespot-grafana
+      # IRSA annotation은 values-dev.infra.generated.yaml에서 주입됩니다.
+      # SSM: /safespot/dev/observability/grafana/irsa-role-arn (optional)
+      annotations: {}
+    service:
+      type: ClusterIP
+    persistence:
+      enabled: true
+      storageClassName: gp3
+      size: 5Gi
+    additionalDataSources:
+      - name: CloudWatch
+        type: cloudwatch
+        jsonData:
+          authType: default
+          defaultRegion: ap-northeast-2
+
+  prometheus:
+    service:
+      type: ClusterIP
+    prometheusSpec:
+      retention: 7d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp3
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 20Gi
+
+  alertmanager:
+    service:
+      type: ClusterIP
+    alertmanagerSpec:
+      storage:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp3
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 5Gi
+
+# EKS context path 적용 (Ingress에서 path-prefix를 붙이는 경우)
+safespot:
+  externalSecrets:
+    grafanaAdmin:
+      enabled: true
+      secretStoreRef:
+        name: safespot-ssm-store
+        kind: ClusterSecretStore
+      adminUserParameter: /safespot/dev/observability/grafana/admin-user
+      adminPasswordParameter: /safespot/dev/observability/grafana/admin-password
+
+  dashboards:
+    redis:
+      enabled: true
+    eks:
+      enabled: true
+    apiHttp:
+      enabled: true
+    # CloudWatch raw dashboard: IRSA 완료. aws.* 값은 values-dev.infra.generated.yaml에서 주입.
+    # 값이 없으면 패널이 "No data"로 표시되지만 배포는 정상.
+    cloudwatchRaw:
+      enabled: true
+    systemOverview:
+      enabled: false
+    apiCustom:
+      enabled: false
+
+  prometheusRules:
+    redis:
+      enabled: true
+    apiHttp:
+      enabled: true
+    eks:
+      enabled: true
+    apiCustom:
+      enabled: false
+
+  # AWS 리소스 식별자: values-dev.infra.generated.yaml에서 실제 값으로 오버라이드됩니다.
+  # scripts/render-dev-values.sh 실행 후 배포하세요.
+  aws:
+    rds:
+      dbClusterIdentifier: ""
+    elasticache:
+      replicationGroupId: ""
+    sqs:
+      eventQueueName: ""
+      cacheRefreshQueueName: ""
+      readmodelRefreshQueueName: ""
+      environmentCacheRefreshQueueName: ""
+      cacheRefreshDlqName: ""
+      readmodelRefreshDlqName: ""
+      environmentCacheRefreshDlqName: ""
+    lambda:
+      asyncWorkerFunctionName: ""
+    alb:
+      loadBalancerDimension: ""
+
+  metrics:
+    apiCore:
+      path: /api/core/actuator/prometheus
+      port: http
+      interval: 15s
+    apiPublicRead:
+      path: /api/public/actuator/prometheus
+      port: http
+      interval: 15s
+    externalIngestion:
+      path: /actuator/prometheus
+      port: http
+      interval: 15s
+    asyncWorker:
+      path: /actuator/prometheus
+      port: http
+      interval: 15s
+
+# prometheus-redis-exporter — EKS dev 활성화
+# redisAddress는 values-dev.infra.generated.yaml에서 주입됩니다 (SSM 기반).
+# scripts/render-dev-values.sh 실행 후 배포하세요.
+redisExporter:
+  enabled: true
+  serviceAccount:
+    create: true
+  redisAddress: "redis://TODO_GENERATED_VALUE:TODO_GENERATED_PORT"
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# subchart ServiceMonitor 사용 — 수동 SM 비활성 유지
+redisExporterExternalServiceMonitor:
+  enabled: false
+
+# yet-another-cloudwatch-exporter — EKS dev 활성화
+# IRSA role ARN은 values-dev.infra.generated.yaml에서 주입됩니다 (SSM 기반).
+# Terraform trust policy subject: system:serviceaccount:monitoring:safespot-yace
+yace:
+  enabled: true
+  serviceAccount:
+    create: true
+    name: "safespot-yace"
+    annotations:
+      # values-dev.infra.generated.yaml이 실제 ARN으로 오버라이드합니다.
+      eks.amazonaws.com/role-arn: "TODO_GENERATED_VALUE"
+  serviceMonitor:
+    enabled: true
+    interval: 60s
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  testConnection: false
+  config: |-
+    apiVersion: v1alpha1
+    sts-region: ap-northeast-2
+    discovery:
+      exportedTagsOnMetrics:
+        AWS/RDS:
+          - Name
+        AWS/ElastiCache:
+          - Name
+      jobs:
+        # Aurora RDS
+        # TODO: searchTags.value를 Aurora 클러스터에 실제 부여된 AWS 태그 값으로 교체하세요
+        - type: AWS/RDS
+          regions:
+            - ap-northeast-2
+          searchTags:
+            - key: Name
+              value: safespot-dev-data-aurora-cluster
+          metrics:
+            - name: CPUUtilization
+              statistics:
+                - Average
+              period: 60
+              length: 300
+            - name: DatabaseConnections
+              statistics:
+                - Average
+              period: 60
+              length: 300
+            - name: ReadLatency
+              statistics:
+                - Average
+                - Maximum
+              period: 60
+              length: 300
+            - name: WriteLatency
+              statistics:
+                - Average
+                - Maximum
+              period: 60
+              length: 300
+            - name: AuroraReplicaLag
+              statistics:
+                - Average
+                - Maximum
+              period: 60
+              length: 300
+            - name: VolumeBytesUsed
+              statistics:
+                - Average
+              period: 60
+              length: 300
+        # ElastiCache
+        # TODO: searchTags.value를 ElastiCache replication group에 실제 부여된 AWS 태그 값으로 교체하세요
+        - type: AWS/ElastiCache
+          regions:
+            - ap-northeast-2
+          searchTags:
+            - key: Name
+              value: safespot-dev-data-redis-main
+          metrics:
+            - name: EngineCPUUtilization
+              statistics:
+                - Average
+              period: 60
+              length: 300
+            - name: Evictions
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: CurrConnections
+              statistics:
+                - Average
+              period: 60
+              length: 300
+            - name: FreeableMemory
+              statistics:
+                - Average
+              period: 60
+              length: 300
+            - name: BytesUsedForCache
+              statistics:
+                - Average
+              period: 60
+              length: 300
+        # ContainerInsights
+        # TODO: searchTags.value를 EKS 클러스터에 실제 부여된 AWS 태그 값으로 교체하세요
+        - type: ContainerInsights
+          regions:
+            - ap-northeast-2
+          searchTags:
+            - key: Name
+              value: safespot-dev-eks
+          dimensionNameRequirements:
+            - ClusterName
+            - NodeName
+          metrics:
+            - name: node_cpu_utilization
+              statistics:
+                - Average
+              period: 60
+              length: 300
+            - name: node_memory_utilization
+              statistics:
+                - Average
+              period: 60
+              length: 300
+    static:
+      # SQS Queues
+      # TODO: dimensions[].value를 실제 SQS 큐 이름으로 교체하세요 (Terraform output 또는 AWS 콘솔 확인)
+      #       교체 완료 후 아래 주석(#)을 해제하세요.
+      #
+      # - namespace: AWS/SQS
+      #   name: sqs-cache-refresh
+      #   regions:
+      #     - ap-northeast-2
+      #   dimensions:
+      #     - name: QueueName
+      #       value: "<TODO: cache-refresh-queue-name>"
+      #   metrics:
+      #     - name: ApproximateNumberOfMessagesVisible
+      #       statistics: [Maximum]
+      #       period: 60
+      #       length: 300
+      #     - name: ApproximateNumberOfMessagesNotVisible
+      #       statistics: [Maximum]
+      #       period: 60
+      #       length: 300
+      #     - name: ApproximateAgeOfOldestMessage
+      #       statistics: [Maximum]
+      #       period: 60
+      #       length: 300
+      #     - name: NumberOfMessagesSent
+      #       statistics: [Sum]
+      #       period: 60
+      #       length: 300
+      #     - name: NumberOfMessagesReceived
+      #       statistics: [Sum]
+      #       period: 60
+      #       length: 300
+      #     - name: NumberOfMessagesDeleted
+      #       statistics: [Sum]
+      #       period: 60
+      #       length: 300
+      #
+      # - namespace: AWS/SQS
+      #   name: sqs-readmodel-refresh
+      #   regions:
+      #     - ap-northeast-2
+      #   dimensions:
+      #     - name: QueueName
+      #       value: "<TODO: readmodel-refresh-queue-name>"
+      #   metrics:
+      #     - name: ApproximateNumberOfMessagesVisible
+      #       statistics: [Maximum]
+      #       period: 60
+      #       length: 300
+      #     - name: ApproximateNumberOfMessagesNotVisible
+      #       statistics: [Maximum]
+      #       period: 60
+      #       length: 300
+      #     - name: ApproximateAgeOfOldestMessage
+      #       statistics: [Maximum]
+      #       period: 60
+      #       length: 300
+      #     - name: NumberOfMessagesSent
+      #       statistics: [Sum]
+      #       period: 60
+      #       length: 300
+      #     - name: NumberOfMessagesReceived
+      #       statistics: [Sum]
+      #       period: 60
+      #       length: 300
+      #     - name: NumberOfMessagesDeleted
+      #       statistics: [Sum]
+      #       period: 60
+      #       length: 300
+      #
+      # - namespace: AWS/SQS
+      #   name: sqs-env-cache-refresh
+      #   regions:
+      #     - ap-northeast-2
+      #   dimensions:
+      #     - name: QueueName
+      #       value: "<TODO: environment-cache-refresh-queue-name>"
+      #   metrics:
+      #     - name: ApproximateNumberOfMessagesVisible
+      #       statistics: [Maximum]
+      #       period: 60
+      #       length: 300
+      #     - name: ApproximateAgeOfOldestMessage
+      #       statistics: [Maximum]
+      #       period: 60
+      #       length: 300
+      #     - name: NumberOfMessagesSent
+      #       statistics: [Sum]
+      #       period: 60
+      #       length: 300
+      #     - name: NumberOfMessagesReceived
+      #       statistics: [Sum]
+      #       period: 60
+      #       length: 300
+      #     - name: NumberOfMessagesDeleted
+      #       statistics: [Sum]
+      #       period: 60
+      #       length: 300
+      #
+      # Lambda
+      # TODO: dimensions[].value를 실제 async-worker Lambda function 이름으로 교체 후 주석 해제
+      #
+      # - namespace: AWS/Lambda
+      #   name: lambda-async-worker
+      #   regions:
+      #     - ap-northeast-2
+      #   dimensions:
+      #     - name: FunctionName
+      #       value: "<TODO: async-worker-lambda-function-name>"
+      #   metrics:
+      #     - name: Invocations
+      #       statistics: [Sum]
+      #       period: 60
+      #       length: 300
+      #     - name: Errors
+      #       statistics: [Sum]
+      #       period: 60
+      #       length: 300
+      #     - name: Throttles
+      #       statistics: [Sum]
+      #       period: 60
+      #       length: 300
+      #     - name: Duration
+      #       statistics: [Average, Maximum]
+      #       period: 60
+      #       length: 300
+      #     - name: ConcurrentExecutions
+      #       statistics: [Maximum]
+      #       period: 60
+      #       length: 300
+      []

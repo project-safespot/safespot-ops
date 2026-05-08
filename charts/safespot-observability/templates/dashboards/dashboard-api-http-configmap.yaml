@@ -1,0 +1,83 @@
+{{- if .Values.safespot.dashboards.apiHttp.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-api-http
+  namespace: {{ .Values.safespot.namespace.monitoring }}
+  labels:
+    grafana_dashboard: "1"
+    env: {{ .Values.safespot.env }}
+    region: {{ .Values.safespot.region }}
+data:
+  api-http.json: |
+    {
+      "uid": "safespot-api-http",
+      "title": "SafeSpot — API HTTP Metrics",
+      "tags": ["safespot", "api", "http"],
+      "timezone": "Asia/Seoul",
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "title": "TPS by Service",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [{
+            "expr": "sum(rate(http_server_requests_seconds_count{service=~\"{{ .Values.safespot.api.servicesFilter }}\"}[1m])) by (service)",
+            "legendFormat": "{{ "{{service}}" }}"
+          }],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 2,
+          "title": "5xx Error Rate (%) by Service",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [{
+            "expr": "sum(rate(http_server_requests_seconds_count{service=~\"{{ .Values.safespot.api.servicesFilter }}\",status=~\"5..\"}[1m])) by (service) / sum(rate(http_server_requests_seconds_count{service=~\"{{ .Values.safespot.api.servicesFilter }}\"}[1m])) by (service) * 100",
+            "legendFormat": "5xx% {{ "{{service}}" }}"
+          }],
+          "fieldConfig": { "defaults": { "unit": "percent" } }
+        },
+        {
+          "id": 3,
+          "title": "4xx Error Rate (%) by Service",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 6, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [{
+            "expr": "sum(rate(http_server_requests_seconds_count{service=~\"{{ .Values.safespot.api.servicesFilter }}\",status=~\"4..\"}[1m])) by (service) / sum(rate(http_server_requests_seconds_count{service=~\"{{ .Values.safespot.api.servicesFilter }}\"}[1m])) by (service) * 100",
+            "legendFormat": "4xx% {{ "{{service}}" }}"
+          }],
+          "fieldConfig": { "defaults": { "unit": "percent" } }
+        },
+        {
+          "id": 4,
+          "title": "p95 Latency by URI",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 6, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [{
+            "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{service=~\"{{ .Values.safespot.api.servicesFilter }}\"}[5m])) by (le, service, uri))",
+            "legendFormat": "p95 {{ "{{service}}" }} {{ "{{uri}}" }}"
+          }],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 5,
+          "title": "p99 Latency by URI",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 12, "w": 24, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [{
+            "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{service=~\"{{ .Values.safespot.api.servicesFilter }}\"}[5m])) by (le, service, uri))",
+            "legendFormat": "p99 {{ "{{service}}" }} {{ "{{uri}}" }}"
+          }],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        }
+      ]
+    }
+{{- end }}

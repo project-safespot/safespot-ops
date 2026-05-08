@@ -2,9 +2,19 @@ apiVersion: v2
 name: safespot-observability
 description: SafeSpot 전용 관측성 Helm Chart (ServiceMonitor / PrometheusRule / Dashboard)
 type: application
-version: 0.1.0
+version: 0.2.0
 
 dependencies:
   - name: kube-prometheus-stack
     version: "84.0.0"
     repository: "https://prometheus-community.github.io/helm-charts"
+  - name: prometheus-redis-exporter
+    alias: redisExporter
+    version: "6.23.0"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: redisExporter.enabled
+  - name: yet-another-cloudwatch-exporter
+    alias: yace
+    version: "0.39.1"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: yace.enabled
