@@ -25,7 +25,7 @@ kube-prometheus-stack:
               requests:
                 storage: 2Gi
 
-redisExporter:
+redis-exporter:
   enabled: false
 
 yace:

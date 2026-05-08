@@ -236,7 +236,7 @@ HEADER
 
   # Redis exporter endpoint + port (required)
   cat <<REDIS
-redisExporter:
+redis-exporter:
   redisAddress: "redis://${REDIS_PRIMARY_ENDPOINT}:${REDIS_PORT}"
 
 REDIS

@@ -8,7 +8,7 @@
 #     -f charts/safespot-observability/values-dev.infra.generated.yaml
 #
 # 인프라 식별자(values-dev.infra.generated.yaml에서 주입됨):
-#   - redisExporter.redisAddress        → SSM: /safespot/dev/data/redis-primary-endpoint + redis-port
+#   - redis-exporter.redisAddress        → SSM: /safespot/dev/data/redis-primary-endpoint + redis-port
 #   - yace.serviceAccount.annotations   → SSM: /safespot/dev/observability/yace/irsa-role-arn
 #   - grafana.serviceAccount.annotations → SSM: /safespot/dev/observability/grafana/irsa-role-arn (optional)
 #   - safespot.aws.sqs.*               → SSM: /safespot/dev/async-worker/*-queue-url (basename 파싱)
@@ -149,7 +149,7 @@ safespot:
 # prometheus-redis-exporter — EKS dev 활성화
 # redisAddress는 values-dev.infra.generated.yaml에서 주입됩니다 (SSM 기반).
 # scripts/render-dev-values.sh 실행 후 배포하세요.
-redisExporter:
+redis-exporter:
   enabled: true
   serviceAccount:
     create: true

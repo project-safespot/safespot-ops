@@ -1,0 +1,125 @@
+name: Observability Chart CI
+
+on:
+  push:
+    branches: [prometheus-stack-for-aws]
+    paths:
+      - "charts/safespot-observability/**"
+      - "scripts/render-dev-values.sh"
+      - ".github/workflows/observability-chart-ci.yml"
+  pull_request:
+    branches: [prometheus-stack-for-aws]
+    paths:
+      - "charts/safespot-observability/**"
+      - "scripts/render-dev-values.sh"
+      - ".github/workflows/observability-chart-ci.yml"
+
+jobs:
+  validate-chart:
+    name: Lint & Template
+    runs-on: ubuntu-latest
+    env:
+      CHART_DIR: charts/safespot-observability
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.17.3"
+
+      - name: Syntax check — render-dev-values.sh
+        run: bash -n scripts/render-dev-values.sh
+
+      - name: Helm repo add
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+
+      - name: Helm dependency build
+        run: helm dependency build ${{ env.CHART_DIR }}
+
+      - name: Helm lint
+        run: |
+          helm lint ${{ env.CHART_DIR }} \
+            -f ${{ env.CHART_DIR }}/values-dev-eks.yaml \
+            -f ${{ env.CHART_DIR }}/values-ci.infra.generated.yaml
+
+      - name: Helm template (render)
+        run: |
+          helm template safespot-observability ${{ env.CHART_DIR }} \
+            -n monitoring \
+            -f ${{ env.CHART_DIR }}/values-dev-eks.yaml \
+            -f ${{ env.CHART_DIR }}/values-ci.infra.generated.yaml \
+            --api-versions monitoring.coreos.com/v1 \
+            > /tmp/rendered.yaml
+
+      - name: Check — no TODO_ placeholders in rendered output
+        run: |
+          count=$(grep -c 'TODO_' /tmp/rendered.yaml || true)
+          if [ "$count" -gt 0 ]; then
+            echo "ERROR: $count TODO_ placeholder(s) found in rendered output"
+            grep -n 'TODO_' /tmp/rendered.yaml
+            exit 1
+          fi
+          echo "OK: no TODO_ placeholders"
+
+      - name: Check — no empty CloudWatch dimensions
+        run: |
+          count=$(grep -cE '"(QueueName|DBClusterIdentifier|FunctionName|ReplicationGroupId)": ""' /tmp/rendered.yaml || true)
+          if [ "$count" -gt 0 ]; then
+            echo "ERROR: $count empty CloudWatch dimension(s) found"
+            grep -nE '"(QueueName|DBClusterIdentifier|FunctionName|ReplicationGroupId)": ""' /tmp/rendered.yaml
+            exit 1
+          fi
+          echo "OK: no empty CloudWatch dimensions"
+
+      - name: Check — DLQ panels rendered
+        run: |
+          if ! grep -q '"── DLQ ──"' /tmp/rendered.yaml; then
+            echo "ERROR: DLQ panel header not found in rendered output"
+            exit 1
+          fi
+          for dlq_target in "cache-refresh-dlq" "readmodel-refresh-dlq" "environment-cache-refresh-dlq"; do
+            if ! grep -q "\"$dlq_target\"" /tmp/rendered.yaml; then
+              echo "ERROR: DLQ target '$dlq_target' not found in rendered output"
+              exit 1
+            fi
+          done
+          echo "OK: DLQ panels present"
+
+      - name: Check — PrometheusRules rendered
+        run: |
+          count=$(grep -c 'kind: PrometheusRule' /tmp/rendered.yaml || true)
+          if [ "$count" -eq 0 ]; then
+            echo "ERROR: no PrometheusRule resources in rendered output"
+            exit 1
+          fi
+          echo "OK: $count PrometheusRule resource(s) found"
+
+      - name: Check — ServiceMonitors rendered
+        run: |
+          count=$(grep -c 'kind: ServiceMonitor' /tmp/rendered.yaml || true)
+          if [ "$count" -eq 0 ]; then
+            echo "ERROR: no ServiceMonitor resources in rendered output"
+            exit 1
+          fi
+          echo "OK: $count ServiceMonitor resource(s) found"
+
+      - name: Check — CloudWatch dashboard rendered
+        run: |
+          if ! grep -q '"safespot-cloudwatch"' /tmp/rendered.yaml; then
+            echo "ERROR: CloudWatch dashboard (uid: safespot-cloudwatch) not found"
+            exit 1
+          fi
+          echo "OK: CloudWatch dashboard present"
+
+      - name: Upload rendered manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendered-manifests
+          path: /tmp/rendered.yaml
+          retention-days: 7

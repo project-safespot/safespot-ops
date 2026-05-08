@@ -132,9 +132,9 @@ alerts:
     errorRateThresholdPercent: "5"
     latencyP95ThresholdSeconds: "2.0"
 
-# prometheus-redis-exporter subchart (alias: redisExporter)
-# condition: redisExporter.enabled — 기본 비활성. 환경별 values에서 활성화.
-redisExporter:
+# prometheus-redis-exporter subchart (alias: redis-exporter)
+# condition: redis-exporter.enabled — 기본 비활성. 환경별 values에서 활성화.
+redis-exporter:
   enabled: false
   serviceAccount:
     create: true

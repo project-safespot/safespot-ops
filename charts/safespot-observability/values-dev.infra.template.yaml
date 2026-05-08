@@ -29,7 +29,7 @@
 # Required
 # ---------------------------------------------------------------------------
 
-redisExporter:
+redis-exporter:
   # SSM: /${PROJECT}/${ENVIRONMENT}/data/redis-primary-endpoint
   # SSM: /${PROJECT}/${ENVIRONMENT}/data/redis-port
   redisAddress: "redis://${REDIS_PRIMARY_ENDPOINT}:${REDIS_PORT}"
