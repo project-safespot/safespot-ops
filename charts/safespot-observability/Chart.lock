@@ -8,5 +8,8 @@ dependencies:
 - name: yet-another-cloudwatch-exporter
   repository: https://prometheus-community.github.io/helm-charts
   version: 0.39.1
-digest: sha256:d32a871711e764e5c495b3d500ef07568992bdd9d21f0ac35cdf6d5c5616de51
-generated: "2026-05-08T18:11:41.036460697+09:00"
+- name: prometheus-adapter
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 5.2.0
+digest: sha256:PLACEHOLDER_REQUIRES_HELM_DEPENDENCY_UPDATE
+generated: "2026-05-10T03:00:00+09:00"
