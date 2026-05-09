@@ -18,12 +18,24 @@ SafeSpot의 `api-public-read` 워크로드는 재난 상황에서 요청 수가 
 CPU 기반 HPA만으로는 확장 타이밍이 늦어질 수 있습니다.
 
 Prometheus Adapter는 Prometheus에 저장된 애플리케이션 메트릭을 Kubernetes HPA가 사용할 수 있는
-`external.metrics.k8s.io` 또는 `custom.metrics.k8s.io` API 형태로 변환하는 역할을 수행합니다.
+`external.metrics.k8s.io` API 형태로 변환하는 역할을 수행합니다.
 
 현재 사용 중인 metric 흐름은 다음과 같습니다.
 
-- Prometheus source metric: `http_request_per_second_count`
-- HPA exposed metric: `http_request_per_second`
+- Prometheus/Grafana 원본 metric: `http_request_per_second_count`
+- HPA external metric: `http_request_per_second`
+
+이름 관계:
+
+| 구분 | Metric name |
+|---|---|
+| Prometheus/Grafana 원본 metric | `http_request_per_second_count` |
+| HPA external metric | `http_request_per_second` |
+
+주의:
+
+- `http_requests_per_second` 와 같은 plural 형태는 사용하지 않습니다.
+- HPA는 반드시 `http_request_per_second` metric만 사용해야 합니다.
 
 흐름:
 
@@ -32,28 +44,49 @@ api-public-read /actuator/prometheus
   → Prometheus scrape
   → http_request_per_second_count 저장
   → Prometheus Adapter rule
-  → external.metrics.k8s.io 또는 custom.metrics.k8s.io
+  → rate() 계산
+  → external.metrics.k8s.io
   → HPA가 http_request_per_second 기준으로 replica 조정
 ```
 
-Prometheus Adapter를 사용하는 이유:
+Prometheus/Grafana에서 보는 `http_request_per_second_count`는 애플리케이션 관측용 counter metric입니다.
 
-- 재난문자 발송 직후의 급격한 요청 증가를 CPU보다 빠르게 감지 가능
-- `api-public-read`의 실제 트래픽 기반 autoscaling 가능
-- CloudFront / Redis cache miss 증가 상황을 더 빠르게 흡수 가능
-- Karpenter node scale-out 완료 전 초기 burst 구간 완충 가능
+Prometheus Adapter는 해당 counter metric에 `rate()`를 적용하여,
+Kubernetes HPA가 사용할 external metric `http_request_per_second`를 생성합니다.
 
-관련 metric 참고:
+Prometheus Adapter 예시 설정:
 
-- Micrometer source metric: `http_server_requests_seconds_count`
-- HPA 변환 대상 metric: `http_request_per_second`
-- Prometheus query 예시:
+```yaml
+prometheus-adapter:
+  rules:
+    default: false
+    external:
+      - seriesQuery: 'http_request_per_second_count{namespace="application",service="api-public-read"}'
+        resources:
+          overrides:
+            namespace:
+              resource: namespace
+        name:
+          matches: "http_request_per_second_count"
+          as: "http_request_per_second"
+        metricsQuery: >
+          sum(rate(http_request_per_second_count{
+            namespace="application",
+            service="api-public-read"
+          }[1m]))
+```
 
-```promql
-sum(rate(http_server_requests_seconds_count{
-  namespace="application",
-  service="api-public-read"
-}[1m]))
+HPA metric 예시:
+
+```yaml
+metrics:
+  - type: External
+    external:
+      metric:
+        name: http_request_per_second
+      target:
+        type: AverageValue
+        averageValue: "50"
 ```
 
 검증 명령:
@@ -125,17 +158,6 @@ helm template safespot-observability charts/safespot-observability \
   --api-versions monitoring.coreos.com/v1
 ```
 
-렌더링 결과 확인:
-
-```bash
-helm template safespot-observability charts/safespot-observability \
-  -n monitoring \
-  -f charts/safespot-observability/values-dev-eks.yaml \
-  -f charts/safespot-observability/values-dev.infra.generated.yaml \
-  --api-versions monitoring.coreos.com/v1 \
-  | grep -E "safespot-yace|safespot-grafana|eks.amazonaws.com/role-arn|redis://|kind: ServiceMonitor|kind: ExternalSecret"
-```
-
 ### 5. 배포
 
 ```bash
@@ -143,78 +165,4 @@ helm upgrade --install safespot-observability charts/safespot-observability \
   -n monitoring --create-namespace \
   -f charts/safespot-observability/values-dev-eks.yaml \
   -f charts/safespot-observability/values-dev.infra.generated.yaml
-```
-
-## ArgoCD 배포 (EKS dev)
-
-ArgoCD Application manifest: `argocd/applications/observability-dev.yaml`
-
-### Application 등록 및 첫 배포
-
-```bash
-# Application 등록
-kubectl apply -f argocd/applications/observability-dev.yaml
-
-# 첫 번째 sync — kube-prometheus-stack CRD 설치
-argocd app sync safespot-observability-dev
-
-# CRD 설치 후 두 번째 sync — CRD에 의존하는 리소스(PrometheusRule, ServiceMonitor 등) 생성
-argocd app sync safespot-observability-dev
-```
-
-> **2회 sync 필요**: `kube-prometheus-stack`의 CRD(PrometheusRule, ServiceMonitor 등)는 첫 번째 sync에서 설치되고,
-> 해당 CRD를 사용하는 리소스는 두 번째 sync에서 정상 적용됩니다.
-> ArgoCD UI에서 첫 번째 sync 후 일부 리소스가 `OutOfSync` 또는 `SyncFailed` 상태로 남아 있으면 한 번 더 sync하세요.
-
-### 이후 인프라 값 갱신 시
-
-```bash
-AWS_PROFILE=<profile> ./scripts/render-dev-values.sh
-git add charts/safespot-observability/values-dev.infra.generated.yaml
-git commit -m "chore: update dev infra generated values"
-git push
-# ArgoCD auto-sync 미설정 시 수동 sync:
-argocd app sync safespot-observability-dev
-```
-
-## EKS 배포 후 확인 항목
-
-```bash
-# Prometheus target 상태
-kubectl -n monitoring port-forward svc/safespot-observability-kube-prometheus 9090
-
-# Grafana에서 확인
-# redis_up == 1
-# redis_keyspace_hits_total 조회 가능
-# aws_rds_cpuutilization_average 조회 가능
-# aws_elasticache_engine_cpuutilization_average 조회 가능
-
-# ExternalSecret 동기화 상태
-kubectl -n monitoring get externalsecret grafana-admin-credentials
-
-# YACE target
-kubectl -n monitoring logs -l app.kubernetes.io/name=yace
-```
-
-## Grafana admin credential
-
-Grafana admin 비밀번호는 `ExternalSecret`을 통해 SSM에서 자동 동기화됩니다.
-
-필요 SSM parameters:
-- `/safespot/dev/observability/grafana/admin-user`
-- `/safespot/dev/observability/grafana/admin-password`
-
-external-secrets operator가 없는 환경에서는:
-
-```bash
-kubectl -n monitoring create secret generic grafana-admin-credentials \
-  --from-literal=admin-user=admin \
-  --from-literal=admin-password=<password>
-```
-
-## 로컬 테스트
-
-```bash
-helm template safespot-observability charts/safespot-observability \
-  -f charts/safespot-observability/values-local.yaml
 ```
