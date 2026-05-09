@@ -45,6 +45,13 @@ kube-prometheus-stack:
           defaultRegion: ap-northeast-2
 
   prometheus:
+    serviceAccount:
+      create: true
+      name: prometheus
+      annotations:
+        # Terraform: terraform/environments/dev/ops
+        # enable_prometheus_irsa = true 적용 후 ops apply 완료된 ARN으로 교체
+        eks.amazonaws.com/role-arn: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/safespot-dev-prometheus-irsa"
     service:
       type: ClusterIP
     prometheusSpec:
