@@ -19,8 +19,7 @@ spec:
           annotations:
             # Terraform: terraform/environments/dev/ops
             # enable_fluentbit_irsa = true 적용 후 ops apply 완료된 ARN으로 교체
-            eks.amazonaws.com/role-arn: "arn:aws:iam::<AWS_ACCOUNT_ID>:role/safespot-dev-fluentbit-irsa"
-
+            eks.amazonaws.com/role-arn: "arn:aws:iam::154335823230:role/safespot-dev-fluentbit-irsa"
         config:
           outputs: |
             [OUTPUT]
