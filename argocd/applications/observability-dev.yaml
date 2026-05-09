@@ -6,7 +6,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: ops
+  project: default
   source:
     repoURL: https://github.com/project-safespot/safespot-ops.git
     targetRevision: prometheus-stack-for-aws
