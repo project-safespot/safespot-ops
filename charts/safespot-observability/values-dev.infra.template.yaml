@@ -56,6 +56,14 @@ kube-prometheus-stack:
         # Terraform trust policy subject: system:serviceaccount:monitoring:safespot-grafana
         eks.amazonaws.com/role-arn: "${GRAFANA_IRSA_ROLE_ARN}"
 
+  prometheus:
+    serviceAccount:
+      # SSM: /${PROJECT}/${ENVIRONMENT}/observability/prometheus/irsa-role-arn
+      # 형식: arn:aws:iam::<account-id>:role/<role-name>
+      # Terraform trust policy subject: system:serviceaccount:monitoring:prometheus
+      annotations:
+        eks.amazonaws.com/role-arn: "${PROMETHEUS_IRSA_ROLE_ARN}"
+
 # ---------------------------------------------------------------------------
 # AWS resource identifiers (for CloudWatch dashboard dimensions)
 # Required: sqs.* (queue URL → basename), others: optional

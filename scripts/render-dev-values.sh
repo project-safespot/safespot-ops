@@ -30,7 +30,7 @@
 #   /${PROJECT}/${ENVIRONMENT}/data/redis-replication-group-id
 #   /${PROJECT}/${ENVIRONMENT}/async-worker/lambda-function-name
 #   /${PROJECT}/${ENVIRONMENT}/front-edge/alb-arn-suffix
-#
+#   /${PROJECT}/${ENVIRONMENT}/observability/prometheus/irsa-role-arn
 # DLQ SSM parameters (name preferred, URL fallback):
 #   /${PROJECT}/${ENVIRONMENT}/async-worker/cache-refresh-dlq-name
 #   /${PROJECT}/${ENVIRONMENT}/async-worker/cache-refresh-dlq-url
@@ -174,6 +174,14 @@ else
   echo "  OK   /${PROJECT}/${ENVIRONMENT}/observability/grafana/irsa-role-arn"
 fi
 
+PROMETHEUS_IRSA_ROLE_ARN="$(get_optional_parameter "/${PROJECT}/${ENVIRONMENT}/observability/prometheus/irsa-role-arn")"
+if [[ -z "$PROMETHEUS_IRSA_ROLE_ARN" ]]; then
+  echo "  SKIP /${PROJECT}/${ENVIRONMENT}/observability/prometheus/irsa-role-arn (not found — Prometheus IRSA annotation will be omitted)"
+else
+  echo "  OK   /${PROJECT}/${ENVIRONMENT}/observability/prometheus/irsa-role-arn"
+fi
+
+
 RDS_CLUSTER_IDENTIFIER="$(get_optional_parameter "/${PROJECT}/${ENVIRONMENT}/data/aurora-cluster-identifier")"
 [[ -z "$RDS_CLUSTER_IDENTIFIER" ]] \
   && echo "  SKIP /${PROJECT}/${ENVIRONMENT}/data/aurora-cluster-identifier" \
@@ -251,23 +259,37 @@ yace:
 YACE
 
   # Grafana IRSA annotation (optional)
-  if [[ -n "${GRAFANA_IRSA_ROLE_ARN}" ]]; then
-    cat <<GRAFANA
+  # kube-prometheus-stack IRSA annotations (optional)
+  if [[ -n "${GRAFANA_IRSA_ROLE_ARN}" || -n "${PROMETHEUS_IRSA_ROLE_ARN}" ]]; then
+    cat <<KPS
 kube-prometheus-stack:
+KPS
+
+    if [[ -n "${GRAFANA_IRSA_ROLE_ARN}" ]]; then
+      cat <<GRAFANA
   grafana:
     serviceAccount:
       annotations:
         eks.amazonaws.com/role-arn: "${GRAFANA_IRSA_ROLE_ARN}"
 
 GRAFANA
-  else
-    cat <<'GRAFANA_SKIP'
-# kube-prometheus-stack.grafana.serviceAccount.annotations is not set.
-# /safespot/dev/observability/grafana/irsa-role-arn was not found in SSM.
-# Grafana CloudWatch datasource will use the node instance profile or no IAM auth.
-# To enable: add the parameter to SSM and re-run this script.
+    fi
 
-GRAFANA_SKIP
+    if [[ -n "${PROMETHEUS_IRSA_ROLE_ARN}" ]]; then
+      cat <<PROMETHEUS
+  prometheus:
+    serviceAccount:
+      annotations:
+        eks.amazonaws.com/role-arn: "${PROMETHEUS_IRSA_ROLE_ARN}"
+
+PROMETHEUS
+    fi
+  else
+    cat <<'KPS_SKIP'
+# kube-prometheus-stack.serviceAccount.annotations are not set.
+# Grafana/Prometheus IRSA role ARNs were not found in SSM.
+
+KPS_SKIP
   fi
 
   # AWS resource identifiers

@@ -26,6 +26,11 @@ kube-prometheus-stack:
     serviceAccount:
       annotations:
         eks.amazonaws.com/role-arn: "arn:aws:iam::154335823230:role/safespot-dev-observability-grafana-irsa"
+        
+  prometheus:
+    serviceAccount:
+      annotations:
+        eks.amazonaws.com/role-arn: "arn:aws:iam::154335823230:role/safespot-dev-observability-prometheus-irsa"
 
 safespot:
   aws:
