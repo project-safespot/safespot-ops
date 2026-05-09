@@ -154,19 +154,29 @@ safespot:
 prometheus-adapter:
   enabled: true
   prometheus:
-  url: http://safespot-observability-kube-prometheus-prometheus.monitoring.svc
+    url: http://safespot-observability-kube-prometheus-prometheus.monitoring.svc
     port: 9090
   rules:
     default: false
     external:
-      - seriesQuery: 'http_server_requests_seconds_count{namespace="application", service="api-public-read"}'
+      # TODO: api-public-read metric에 service="api-public-read" label이 실제로 존재하는지 Prometheus에서 확인하세요.
+      # label이 없다면 아래 활성 rule의 service matcher를 제거하고 namespace 기준 대안 쿼리로 전환하세요.
+      - seriesQuery: 'http_request_per_second_count{namespace="application",service="api-public-read"}'
         name:
-          as: "api_public_read_requests_per_second"
+          as: "http_request_per_second"
         metricsQuery: >
-          sum(rate(http_server_requests_seconds_count{
+          sum(rate(http_request_per_second_count{
             namespace="application",
             service="api-public-read"
           }[1m]))
+      # service label 미존재 시 대안:
+      # - seriesQuery: 'http_request_per_second_count{namespace="application"}'
+      #   name:
+      #     as: "http_request_per_second"
+      #   metricsQuery: >
+      #     sum(rate(http_request_per_second_count{
+      #       namespace="application"
+      #     }[1m]))
 
 # prometheus-redis-exporter — EKS dev 활성화
 # redisAddress는 values-dev.infra.generated.yaml에서 주입됩니다 (SSM 기반).
