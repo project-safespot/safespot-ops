@@ -151,6 +151,9 @@ safespot:
       interval: 15s
 
 # prometheus-adapter — EKS dev 활성화
+# Prometheus/Grafana 원본 metric: http_request_per_second_count
+# HPA external metric: http_request_per_second
+# plural 형태(http_requests_per_second)는 사용하지 않습니다.
 prometheus-adapter:
   enabled: true
   prometheus:
@@ -159,24 +162,19 @@ prometheus-adapter:
   rules:
     default: false
     external:
-      # TODO: api-public-read metric에 service="api-public-read" label이 실제로 존재하는지 Prometheus에서 확인하세요.
-      # label이 없다면 아래 활성 rule의 service matcher를 제거하고 namespace 기준 대안 쿼리로 전환하세요.
       - seriesQuery: 'http_request_per_second_count{namespace="application",service="api-public-read"}'
+        resources:
+          overrides:
+            namespace:
+              resource: namespace
         name:
+          matches: "http_request_per_second_count"
           as: "http_request_per_second"
         metricsQuery: >
           sum(rate(http_request_per_second_count{
             namespace="application",
             service="api-public-read"
           }[1m]))
-      # service label 미존재 시 대안:
-      # - seriesQuery: 'http_request_per_second_count{namespace="application"}'
-      #   name:
-      #     as: "http_request_per_second"
-      #   metricsQuery: >
-      #     sum(rate(http_request_per_second_count{
-      #       namespace="application"
-      #     }[1m]))
 
 # prometheus-redis-exporter — EKS dev 활성화
 # redisAddress는 values-dev.infra.generated.yaml에서 주입됩니다 (SSM 기반).
@@ -332,134 +330,4 @@ yace:
               period: 60
               length: 300
     static:
-      # SQS Queues
-      # TODO: dimensions[].value를 실제 SQS 큐 이름으로 교체하세요 (Terraform output 또는 AWS 콘솔 확인)
-      #       교체 완료 후 아래 주석(#)을 해제하세요.
-      #
-      # - namespace: AWS/SQS
-      #   name: sqs-cache-refresh
-      #   regions:
-      #     - ap-northeast-2
-      #   dimensions:
-      #     - name: QueueName
-      #       value: "<TODO: cache-refresh-queue-name>"
-      #   metrics:
-      #     - name: ApproximateNumberOfMessagesVisible
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: ApproximateNumberOfMessagesNotVisible
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: ApproximateAgeOfOldestMessage
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesSent
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesReceived
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesDeleted
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #
-      # - namespace: AWS/SQS
-      #   name: sqs-readmodel-refresh
-      #   regions:
-      #     - ap-northeast-2
-      #   dimensions:
-      #     - name: QueueName
-      #       value: "<TODO: readmodel-refresh-queue-name>"
-      #   metrics:
-      #     - name: ApproximateNumberOfMessagesVisible
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: ApproximateNumberOfMessagesNotVisible
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: ApproximateAgeOfOldestMessage
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesSent
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesReceived
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesDeleted
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #
-      # - namespace: AWS/SQS
-      #   name: sqs-env-cache-refresh
-      #   regions:
-      #     - ap-northeast-2
-      #   dimensions:
-      #     - name: QueueName
-      #       value: "<TODO: environment-cache-refresh-queue-name>"
-      #   metrics:
-      #     - name: ApproximateNumberOfMessagesVisible
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: ApproximateAgeOfOldestMessage
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesSent
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesReceived
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesDeleted
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #
-      # Lambda
-      # TODO: dimensions[].value를 실제 async-worker Lambda function 이름으로 교체 후 주석 해제
-      #
-      # - namespace: AWS/Lambda
-      #   name: lambda-async-worker
-      #   regions:
-      #     - ap-northeast-2
-      #   dimensions:
-      #     - name: FunctionName
-      #       value: "<TODO: async-worker-lambda-function-name>"
-      #   metrics:
-      #     - name: Invocations
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: Errors
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: Throttles
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: Duration
-      #       statistics: [Average, Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: ConcurrentExecutions
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
       []
