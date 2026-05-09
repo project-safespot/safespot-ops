@@ -12,6 +12,68 @@ SafeSpot 전용 관측성 Helm Chart.
 | `values-dev.infra.template.yaml` | SSM 치환용 envsubst 템플릿 (참조용). |
 | `values-dev.infra.generated.yaml` | **스크립트가 생성하는 파일. 직접 편집 금지.** |
 
+## Prometheus Adapter / HPA custom metric
+
+SafeSpot의 `api-public-read` 워크로드는 재난 상황에서 요청 수가 급증할 수 있으므로,
+CPU 기반 HPA만으로는 확장 타이밍이 늦어질 수 있습니다.
+
+Prometheus Adapter는 Prometheus에 저장된 애플리케이션 메트릭을 Kubernetes HPA가 사용할 수 있는
+`external.metrics.k8s.io` 또는 `custom.metrics.k8s.io` API 형태로 변환하는 역할을 수행합니다.
+
+현재 사용 중인 metric 흐름은 다음과 같습니다.
+
+- Prometheus source metric: `http_request_per_second_count`
+- HPA exposed metric: `http_request_per_second`
+
+흐름:
+
+```text
+api-public-read /actuator/prometheus
+  → Prometheus scrape
+  → http_request_per_second_count 저장
+  → Prometheus Adapter rule
+  → external.metrics.k8s.io 또는 custom.metrics.k8s.io
+  → HPA가 http_request_per_second 기준으로 replica 조정
+```
+
+Prometheus Adapter를 사용하는 이유:
+
+- 재난문자 발송 직후의 급격한 요청 증가를 CPU보다 빠르게 감지 가능
+- `api-public-read`의 실제 트래픽 기반 autoscaling 가능
+- CloudFront / Redis cache miss 증가 상황을 더 빠르게 흡수 가능
+- Karpenter node scale-out 완료 전 초기 burst 구간 완충 가능
+
+관련 metric 참고:
+
+- Micrometer source metric: `http_server_requests_seconds_count`
+- HPA 변환 대상 metric: `http_request_per_second`
+- Prometheus query 예시:
+
+```promql
+sum(rate(http_server_requests_seconds_count{
+  namespace="application",
+  service="api-public-read"
+}[1m]))
+```
+
+검증 명령:
+
+```bash
+# Adapter API 등록 확인
+kubectl get apiservice | grep metrics
+
+# External metric 조회
+kubectl get --raw \
+  "/apis/external.metrics.k8s.io/v1beta1" | jq
+
+# 특정 metric 조회 예시
+kubectl get --raw \
+  "/apis/external.metrics.k8s.io/v1beta1/namespaces/application/http_request_per_second" | jq
+
+# Prometheus metric 확인
+kubectl -n monitoring port-forward svc/safespot-observability-kube-prometheus 9090
+```
+
 ## EKS dev 배포 절차
 
 ### 1. 인프라 values 생성
@@ -87,24 +149,6 @@ helm upgrade --install safespot-observability charts/safespot-observability \
 
 ArgoCD Application manifest: `argocd/applications/observability-dev.yaml`
 
-### 사전 조건
-
-1. **`values-dev.infra.generated.yaml` Git 커밋 필수** — ArgoCD는 Git에서 파일을 읽으므로 반드시 커밋되어 있어야 합니다.
-   ```bash
-   AWS_PROFILE=<profile> ./scripts/render-dev-values.sh
-   git add charts/safespot-observability/values-dev.infra.generated.yaml
-   git commit -m "chore: update dev infra generated values"
-   git push
-   ```
-
-2. **ArgoCD `safespot` project 생성** — ArgoCD에 `safespot` project가 없는 경우 먼저 생성하세요.
-   ```bash
-   argocd proj create safespot \
-     --src https://github.com/project-safespot/safespot-ops.git \
-     --dest https://kubernetes.default.svc,monitoring \
-     --dest https://kubernetes.default.svc,argocd
-   ```
-
 ### Application 등록 및 첫 배포
 
 ```bash
@@ -174,42 +218,3 @@ kubectl -n monitoring create secret generic grafana-admin-credentials \
 helm template safespot-observability charts/safespot-observability \
   -f charts/safespot-observability/values-local.yaml
 ```
-
-## 후속 작업 (이번 PR 범위 외)
-
-### DLQ 패널
-
-CloudWatch dashboard에 3개 DLQ에 대한 패널(Visible Messages, Oldest Message Age)이 활성화되어 있습니다.
-
-패널 렌더링 조건: `safespot.dashboards.cloudwatchRaw.enabled == true` and at least one DLQ QueueName is non-empty. QueueName이 비어 있는 DLQ target은 렌더링되지 않습니다.
-
-지원 DLQ:
-- `cache-refresh-dlq`
-- `readmodel-refresh-dlq`
-- `environment-cache-refresh-dlq`
-
-`event-dlq`는 Terraform에서 backward-compatible representative DLQ로 `cache-refresh` DLQ를 가리키므로 별도 패널 target으로 추가하지 않습니다.
-
-DLQ SSM parameters (name preferred, URL fallback):
-
-| DLQ | name (preferred) | url (fallback) |
-|-----|-----------------|----------------|
-| cache-refresh | `/safespot/dev/async-worker/cache-refresh-dlq-name` | `/safespot/dev/async-worker/cache-refresh-dlq-url` |
-| readmodel-refresh | `/safespot/dev/async-worker/readmodel-refresh-dlq-name` | `/safespot/dev/async-worker/readmodel-refresh-dlq-url` |
-| environment-cache-refresh | `/safespot/dev/async-worker/environment-cache-refresh-dlq-name` | `/safespot/dev/async-worker/environment-cache-refresh-dlq-url` |
-
-name parameter가 없으면 URL의 마지막 경로 segment를 QueueName으로 사용합니다 (`basename`). FIFO queue의 경우 `.fifo` suffix가 보존됩니다.
-
-### ALB TargetGroup 패널
-
-아래 SSM parameters가 추가되어 있으나 CloudWatch dashboard에 TargetGroup 패널이 없습니다.
-후속 PR에서 `AWS/ApplicationELB` 섹션을 추가하세요.
-
-- `/safespot/dev/front-edge/alb-arn-suffix`
-- `/safespot/dev/front-edge/api-core-target-group-arn-suffix`
-- `/safespot/dev/front-edge/api-public-read-target-group-arn-suffix`
-
-### YACE static config 활성화
-
-`values-dev-eks.yaml`의 YACE static 블록(SQS / Lambda)이 주석 처리된 상태입니다.
-SQS queue 이름과 Lambda function 이름이 확정되었으므로 주석을 해제하고 실제 값으로 교체하세요.
