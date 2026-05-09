@@ -6,7 +6,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: ops
+  project: default
   source:
     repoURL: https://fluent.github.io/helm-charts
     chart: fluent-bit
