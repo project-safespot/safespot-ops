@@ -250,13 +250,261 @@ redis-exporter:
 REDIS
 
   # YACE IRSA annotation (required)
+  # YACE IRSA annotation + generated config (required)
   cat <<YACE
 yace:
   serviceAccount:
     annotations:
       eks.amazonaws.com/role-arn: "${YACE_IRSA_ROLE_ARN}"
+  config: |-
+    apiVersion: v1alpha1
+    sts-region: ${AWS_REGION}
+    discovery:
+      exportedTagsOnMetrics:
+        AWS/RDS:
+          - Name
+        AWS/ElastiCache:
+          - Name
+      jobs:
+        - type: AWS/RDS
+          regions:
+            - ${AWS_REGION}
+          searchTags:
+            - key: Name
+              value: safespot-dev-data-aurora-cluster
+          metrics:
+            - name: CPUUtilization
+              statistics:
+                - Average
+              period: 60
+              length: 300
+            - name: DatabaseConnections
+              statistics:
+                - Average
+              period: 60
+              length: 300
+            - name: ReadLatency
+              statistics:
+                - Average
+                - Maximum
+              period: 60
+              length: 300
+            - name: WriteLatency
+              statistics:
+                - Average
+                - Maximum
+              period: 60
+              length: 300
+            - name: AuroraReplicaLag
+              statistics:
+                - Average
+                - Maximum
+              period: 60
+              length: 300
+            - name: VolumeBytesUsed
+              statistics:
+                - Average
+              period: 60
+              length: 300
+
+        - type: AWS/ElastiCache
+          regions:
+            - ${AWS_REGION}
+          searchTags:
+            - key: Name
+              value: safespot-dev-data-redis-main
+          metrics:
+            - name: EngineCPUUtilization
+              statistics:
+                - Average
+              period: 60
+              length: 300
+            - name: Evictions
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: CurrConnections
+              statistics:
+                - Average
+              period: 60
+              length: 300
+            - name: FreeableMemory
+              statistics:
+                - Average
+              period: 60
+              length: 300
+            - name: BytesUsedForCache
+              statistics:
+                - Average
+              period: 60
+              length: 300
+
+        - type: ContainerInsights
+          regions:
+            - ${AWS_REGION}
+          searchTags:
+            - key: Name
+              value: safespot-dev-eks
+          dimensionNameRequirements:
+            - ClusterName
+            - NodeName
+          metrics:
+            - name: node_cpu_utilization
+              statistics:
+                - Average
+              period: 60
+              length: 300
+            - name: node_memory_utilization
+              statistics:
+                - Average
+              period: 60
+              length: 300
+    static:
 
 YACE
+
+  if [[ -n "${CACHE_REFRESH_QUEUE_NAME}" ]]; then
+    cat <<SQS_CACHE
+      - namespace: AWS/SQS
+        name: sqs-cache-refresh
+        regions:
+          - ${AWS_REGION}
+        dimensions:
+          - name: QueueName
+            value: "${CACHE_REFRESH_QUEUE_NAME}"
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateNumberOfMessagesNotVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesSent
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesReceived
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesDeleted
+            statistics: [Sum]
+            period: 60
+            length: 300
+SQS_CACHE
+  fi
+
+  if [[ -n "${READMODEL_REFRESH_QUEUE_NAME}" ]]; then
+    cat <<SQS_READMODEL
+      - namespace: AWS/SQS
+        name: sqs-readmodel-refresh
+        regions:
+          - ${AWS_REGION}
+        dimensions:
+          - name: QueueName
+            value: "${READMODEL_REFRESH_QUEUE_NAME}"
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateNumberOfMessagesNotVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesSent
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesReceived
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesDeleted
+            statistics: [Sum]
+            period: 60
+            length: 300
+SQS_READMODEL
+  fi
+
+  if [[ -n "${ENVIRONMENT_CACHE_REFRESH_QUEUE_NAME}" ]]; then
+    cat <<SQS_ENV
+      - namespace: AWS/SQS
+        name: sqs-env-cache-refresh
+        regions:
+          - ${AWS_REGION}
+        dimensions:
+          - name: QueueName
+            value: "${ENVIRONMENT_CACHE_REFRESH_QUEUE_NAME}"
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesSent
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesReceived
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesDeleted
+            statistics: [Sum]
+            period: 60
+            length: 300
+SQS_ENV
+  fi
+
+  if [[ -n "${LAMBDA_FUNCTION_NAME}" ]]; then
+    cat <<LAMBDA
+      - namespace: AWS/Lambda
+        name: lambda-async-worker
+        regions:
+          - ${AWS_REGION}
+        dimensions:
+          - name: FunctionName
+            value: "${LAMBDA_FUNCTION_NAME}"
+        metrics:
+          - name: Invocations
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: Errors
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: Throttles
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: Duration
+            statistics: [Average, Maximum]
+            period: 60
+            length: 300
+          - name: ConcurrentExecutions
+            statistics: [Maximum]
+            period: 60
+            length: 300
+LAMBDA
+  fi
+
+  echo ""
 
   # Grafana IRSA annotation (optional)
   # kube-prometheus-stack IRSA annotations (optional)

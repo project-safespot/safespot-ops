@@ -150,6 +150,24 @@ safespot:
       port: http
       interval: 15s
 
+# prometheus-adapter — EKS dev 활성화
+prometheus-adapter:
+  enabled: true
+  prometheus:
+  url: http://safespot-observability-kube-prometheus-prometheus.monitoring.svc
+    port: 9090
+  rules:
+    default: false
+    external:
+      - seriesQuery: 'http_server_requests_seconds_count{namespace="application", service="api-public-read"}'
+        name:
+          as: "api_public_read_requests_per_second"
+        metricsQuery: >
+          sum(rate(http_server_requests_seconds_count{
+            namespace="application",
+            service="api-public-read"
+          }[1m]))
+
 # prometheus-redis-exporter — EKS dev 활성화
 # redisAddress는 values-dev.infra.generated.yaml에서 주입됩니다 (SSM 기반).
 # scripts/render-dev-values.sh 실행 후 배포하세요.

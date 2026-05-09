@@ -18,3 +18,8 @@ dependencies:
     version: "0.39.1"
     repository: "https://prometheus-community.github.io/helm-charts"
     condition: yace.enabled
+  - name: prometheus-adapter
+    alias: prometheus-adapter
+    version: "5.2.0"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: prometheus-adapter.enabled
