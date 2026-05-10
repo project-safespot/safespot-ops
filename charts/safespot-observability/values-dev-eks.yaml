@@ -158,14 +158,25 @@ prometheus-adapter:
   prometheus:
     url: http://safespot-observability-dev-prometheus.monitoring.svc
     port: 9090
+
   rules:
     default: false
+
     external:
-      - seriesQuery: 'http_server_requests_seconds_count{namespace="application",service="api-public-read"}'
+      - seriesQuery: 'http_server_requests_seconds_count'
+
         name:
           as: "http_request_per_second"
+
         metricsQuery: >
-          sum(rate(http_server_requests_seconds_count{namespace="application",service="api-public-read"}[1m]))
+          sum(
+            rate(
+              http_server_requests_seconds_count{
+                <<.LabelMatchers>>,
+                service="api-public-read"
+              }[1m]
+            )
+          )
 
 # prometheus-redis-exporter — EKS dev 활성화
 # redisAddress는 values-dev.infra.generated.yaml에서 주입됩니다 (SSM 기반).
