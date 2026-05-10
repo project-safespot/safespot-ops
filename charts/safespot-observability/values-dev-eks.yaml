@@ -150,11 +150,9 @@ safespot:
       port: http
       interval: 15s
 
-# prometheus-adapter — EKS dev 활성화
-# Prometheus/Grafana 원본 metric: http_request_per_second_count
+# Prometheus 원본 metric: http_server_requests_seconds_count
 # HPA external metric: http_request_per_second
 # plural 형태(http_requests_per_second)는 사용하지 않습니다.
-# prometheus-adapter — EKS dev 활성화
 prometheus-adapter:
   enabled: true
   prometheus:
