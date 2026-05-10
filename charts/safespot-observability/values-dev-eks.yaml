@@ -154,6 +154,7 @@ safespot:
 # Prometheus/Grafana 원본 metric: http_request_per_second_count
 # HPA external metric: http_request_per_second
 # plural 형태(http_requests_per_second)는 사용하지 않습니다.
+# prometheus-adapter — EKS dev 활성화
 prometheus-adapter:
   enabled: true
   prometheus:
@@ -162,19 +163,11 @@ prometheus-adapter:
   rules:
     default: false
     external:
-      - seriesQuery: 'http_request_per_second_count{namespace="application",service="api-public-read"}'
-        resources:
-          overrides:
-            namespace:
-              resource: namespace
+      - seriesQuery: 'http_server_requests_seconds_count{namespace="application",service="api-public-read"}'
         name:
-          matches: "http_request_per_second_count"
           as: "http_request_per_second"
         metricsQuery: >
-          sum(rate(http_request_per_second_count{
-            namespace="application",
-            service="api-public-read"
-          }[1m]))
+          sum(rate(http_server_requests_seconds_count{namespace="application",service="api-public-read"}[1m]))
 
 # prometheus-redis-exporter — EKS dev 활성화
 # redisAddress는 values-dev.infra.generated.yaml에서 주입됩니다 (SSM 기반).
