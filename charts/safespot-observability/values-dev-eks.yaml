@@ -157,7 +157,7 @@ safespot:
 prometheus-adapter:
   enabled: true
   prometheus:
-    url: http://safespot-observability-kube-prometheus-prometheus.monitoring.svc
+    url: http://safespot-observability-dev-prometheus.monitoring.svc
     port: 9090
   rules:
     default: false
