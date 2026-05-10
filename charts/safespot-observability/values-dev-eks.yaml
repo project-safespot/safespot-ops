@@ -81,7 +81,7 @@ safespot:
     grafanaAdmin:
       enabled: true
       secretStoreRef:
-        name: safespot-ssm-store
+        name: ssm-parameter-store
         kind: ClusterSecretStore
       adminUserParameter: /safespot/dev/observability/grafana/admin-user
       adminPasswordParameter: /safespot/dev/observability/grafana/admin-password
