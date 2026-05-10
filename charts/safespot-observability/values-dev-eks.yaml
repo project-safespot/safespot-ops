@@ -155,6 +155,7 @@ safespot:
 # plural 형태(http_requests_per_second)는 사용하지 않습니다.
 prometheus-adapter:
   enabled: true
+
   prometheus:
     url: http://safespot-observability-dev-prometheus.monitoring.svc
     port: 9090
@@ -163,16 +164,21 @@ prometheus-adapter:
     default: false
 
     external:
-      - seriesQuery: 'http_server_requests_seconds_count'
+      - seriesQuery: 'http_server_requests_seconds_count{namespace="application",service="api-public-read"}'
+
+        resources:
+          overrides:
+            namespace:
+              resource: namespace
 
         name:
-          as: "http_request_per_second"
+          as: "api_public_read_requests_per_second"
 
         metricsQuery: >
           sum(
             rate(
               http_server_requests_seconds_count{
-                <<.LabelMatchers>>,
+                namespace="application",
                 service="api-public-read"
               }[1m]
             )
