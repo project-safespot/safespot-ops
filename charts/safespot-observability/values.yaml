@@ -55,7 +55,7 @@ safespot:
     grafanaAdmin:
       enabled: false
       secretStoreRef:
-        name: safespot-ssm-store
+        name: ssm-parameter-store
         kind: ClusterSecretStore
       targetSecretName: grafana-admin-credentials
       userKey: admin-user
