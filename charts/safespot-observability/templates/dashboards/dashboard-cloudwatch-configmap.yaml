@@ -120,7 +120,7 @@ data:
           "targets": [
             {
               "expr": "aws_sqs_approximate_number_of_messages_visible_maximum",
-              "legendFormat": "{{ name }}",
+              "legendFormat": "{{`{{ name }}`}}",
               "refId": "A"
             }
           ]
@@ -134,7 +134,7 @@ data:
           "targets": [
             {
               "expr": "aws_sqs_approximate_age_of_oldest_message_maximum",
-              "legendFormat": "{{ name }}",
+              "legendFormat": "{{`{{ name }}`}}",
               "refId": "A"
             }
           ],
@@ -149,12 +149,12 @@ data:
           "targets": [
             {
               "expr": "aws_sqs_number_of_messages_sent_sum",
-              "legendFormat": "sent - {{ name }}",
+              "legendFormat": "sent - {{`{{ name }}`}}",
               "refId": "A"
             },
             {
               "expr": "aws_sqs_number_of_messages_deleted_sum",
-              "legendFormat": "deleted - {{ name }}",
+              "legendFormat": "deleted - {{`{{ name }}`}}",
               "refId": "B"
             }
           ]
@@ -175,17 +175,17 @@ data:
           "targets": [
             {
               "expr": "aws_lambda_invocations_sum",
-              "legendFormat": "invocations - {{ name }}",
+              "legendFormat": "invocations - {{`{{ name }}`}}",
               "refId": "A"
             },
             {
               "expr": "aws_lambda_errors_sum",
-              "legendFormat": "errors - {{ name }}",
+              "legendFormat": "errors - {{`{{ name }}`}}",
               "refId": "B"
             },
             {
               "expr": "aws_lambda_throttles_sum",
-              "legendFormat": "throttles - {{ name }}",
+              "legendFormat": "throttles - {{`{{ name }}`}}",
               "refId": "C"
             }
           ]
@@ -199,12 +199,12 @@ data:
           "targets": [
             {
               "expr": "aws_lambda_duration_average",
-              "legendFormat": "avg duration - {{ name }}",
+              "legendFormat": "avg duration - {{`{{ name }}`}}",
               "refId": "A"
             },
             {
               "expr": "aws_lambda_duration_maximum",
-              "legendFormat": "max duration - {{ name }}",
+              "legendFormat": "max duration - {{`{{ name }}`}}",
               "refId": "B"
             }
           ],
@@ -219,7 +219,7 @@ data:
           "targets": [
             {
               "expr": "aws_lambda_concurrent_executions_maximum",
-              "legendFormat": "concurrent - {{ name }}",
+              "legendFormat": "concurrent - {{`{{ name }}`}}",
               "refId": "A"
             }
           ]
