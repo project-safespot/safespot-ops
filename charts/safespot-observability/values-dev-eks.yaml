@@ -234,9 +234,7 @@ fluent-bit:
   serviceAccount:
     create: true
     name: safespot-fluent-bit
-    annotations:
-      # IRSA 사용 시 Terraform에서 생성한 role arn으로 교체
-      eks.amazonaws.com/role-arn: {}
+    annotations: {}
   tolerations:
     - operator: Exists
 
