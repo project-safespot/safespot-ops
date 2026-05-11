@@ -174,9 +174,19 @@ data:
           "datasource": "Prometheus",
           "targets": [
             {
-              "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name=~\".*[dD][lL][qQ].*\"}",
-              "legendFormat": "visible - {{`{{ name }}`}}",
+              "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name=~\".*cache.*refresh.*dlq.*|.*cache.*refresh.*DLQ.*|.*cache-refresh-dlq.*\"}",
+              "legendFormat": "cache-refresh-dlq",
               "refId": "A"
+            },
+            {
+              "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name=~\".*readmodel.*refresh.*dlq.*|.*readmodel.*refresh.*DLQ.*|.*readmodel-refresh-dlq.*\"}",
+              "legendFormat": "readmodel-refresh-dlq",
+              "refId": "B"
+            },
+            {
+              "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name=~\".*environment.*cache.*refresh.*dlq.*|.*environment.*cache.*refresh.*DLQ.*|.*environment-cache-refresh-dlq.*\"}",
+              "legendFormat": "environment-cache-refresh-dlq",
+              "refId": "C"
             }
           ]
         },
@@ -188,9 +198,19 @@ data:
           "datasource": "Prometheus",
           "targets": [
             {
-              "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*[dD][lL][qQ].*\"}",
-              "legendFormat": "age - {{`{{ name }}`}}",
+              "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*cache.*refresh.*dlq.*|.*cache.*refresh.*DLQ.*|.*cache-refresh-dlq.*\"}",
+              "legendFormat": "cache-refresh-dlq",
               "refId": "A"
+            },
+            {
+              "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*readmodel.*refresh.*dlq.*|.*readmodel.*refresh.*DLQ.*|.*readmodel-refresh-dlq.*\"}",
+              "legendFormat": "readmodel-refresh-dlq",
+              "refId": "B"
+            },
+            {
+              "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*environment.*cache.*refresh.*dlq.*|.*environment.*cache.*refresh.*DLQ.*|.*environment-cache-refresh-dlq.*\"}",
+              "legendFormat": "environment-cache-refresh-dlq",
+              "refId": "C"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "s" } }
