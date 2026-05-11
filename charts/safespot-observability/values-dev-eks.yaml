@@ -66,6 +66,8 @@ kube-prometheus-stack:
     service:
       type: ClusterIP
     alertmanagerSpec:
+      secrets:
+        - alertmanager-slack-webhook
       storage:
         volumeClaimTemplate:
           spec:
@@ -74,6 +76,23 @@ kube-prometheus-stack:
             resources:
               requests:
                 storage: 5Gi
+    config:
+      route:
+        receiver: slack
+        group_by:
+          - namespace
+        routes:
+          - receiver: "null"
+            matchers:
+              - alertname="Watchdog"
+
+      receivers:
+        - name: "null"
+        - name: slack
+          slack_configs:
+            - api_url_file: /etc/alertmanager/secrets/alertmanager-slack-webhook/slack_webhook_url
+              channel: "#더존비즈온팀프로젝트"
+              send_resolved: true
 
 # EKS context path 적용 (Ingress에서 path-prefix를 붙이는 경우)
 safespot:
