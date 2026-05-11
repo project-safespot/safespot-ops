@@ -23,3 +23,7 @@ dependencies:
     version: "5.2.0"
     repository: "https://prometheus-community.github.io/helm-charts"
     condition: prometheus-adapter.enabled
+  - name: fluent-bit
+    version: "0.50.0"
+    repository: "https://fluent.github.io/helm-charts"
+    condition: fluent-bit.enabled
