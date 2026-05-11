@@ -11,5 +11,8 @@ dependencies:
 - name: prometheus-adapter
   repository: https://prometheus-community.github.io/helm-charts
   version: 5.2.0
-digest: sha256:a5d5b962c509867408dbaa79001f8690d182462a778a372b1d550d07b5ee6da3
-generated: "2026-05-10T09:27:58.795501856+09:00"
+- name: fluent-bit
+  repository: https://fluent.github.io/helm-charts
+  version: 0.50.0
+digest: sha256:a52437de94bf4cb88d1125dc7cc935234c579e6eaef9067570909aa97e375116
+generated: "2026-05-12T02:21:41.168752028+09:00"
