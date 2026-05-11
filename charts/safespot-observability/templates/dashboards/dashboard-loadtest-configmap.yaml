@@ -172,7 +172,7 @@ data:
           "targets": [
             {
               "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) by (service)",
-              "legendFormat": "{{ \"{{service}}\" }}",
+              "legendFormat": "{{`{{service}}`}}",
               "refId": "A"
             }
           ],
@@ -187,7 +187,7 @@ data:
           "targets": [
             {
               "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) by (service, status)",
-              "legendFormat": "{{ \"{{service}}\" }} {{ \"{{status}}\" }}",
+              "legendFormat": "{{`{{service}}`}} {{`{{status}}`}}",
               "refId": "A"
             }
           ],
@@ -202,12 +202,12 @@ data:
           "targets": [
             {
               "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\",status=~\"4..\"}[1m])) by (service) / sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) by (service) * 100",
-              "legendFormat": "4xx {{ \"{{service}}\" }}",
+              "legendFormat": "4xx {{`{{service}}`}}",
               "refId": "A"
             },
             {
               "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\",status=~\"5..\"}[1m])) by (service) / sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) by (service) * 100",
-              "legendFormat": "5xx {{ \"{{service}}\" }}",
+              "legendFormat": "5xx {{`{{service}}`}}",
               "refId": "B"
             }
           ],
@@ -222,7 +222,7 @@ data:
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m])) by (le, service, uri))",
-              "legendFormat": "p95 {{ \"{{service}}\" }} {{ \"{{uri}}\" }}",
+              "legendFormat": "p95 {{`{{service}}`}} {{`{{uri}}`}}",
               "refId": "A"
             }
           ],
@@ -247,7 +247,7 @@ data:
           "targets": [
             {
               "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) by (service)",
-              "legendFormat": "{{ \"{{service}}\" }}",
+              "legendFormat": "{{`{{service}}`}}",
               "refId": "A"
             }
           ],
@@ -262,12 +262,12 @@ data:
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m])) by (le, service, uri))",
-              "legendFormat": "p95 {{ \"{{service}}\" }} {{ \"{{uri}}\" }}",
+              "legendFormat": "p95 {{`{{service}}`}} {{`{{uri}}`}}",
               "refId": "A"
             },
             {
               "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m])) by (le, service, uri))",
-              "legendFormat": "p99 {{ \"{{service}}\" }} {{ \"{{uri}}\" }}",
+              "legendFormat": "p99 {{`{{service}}`}} {{`{{uri}}`}}",
               "refId": "B"
             }
           ],
@@ -282,7 +282,7 @@ data:
           "targets": [
             {
               "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"application\",pod=~\"api-core.*|api-public-read.*\",container!=\"\"}[1m])) by (pod)",
-              "legendFormat": "{{ \"{{pod}}\" }}",
+              "legendFormat": "{{`{{pod}}`}}",
               "refId": "A"
             }
           ]
@@ -296,7 +296,7 @@ data:
           "targets": [
             {
               "expr": "sum(container_memory_working_set_bytes{namespace=\"application\",pod=~\"api-core.*|api-public-read.*\",container!=\"\"}) by (pod)",
-              "legendFormat": "{{ \"{{pod}}\" }}",
+              "legendFormat": "{{`{{pod}}`}}",
               "refId": "A"
             }
           ],
@@ -311,12 +311,12 @@ data:
           "targets": [
             {
               "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"application\"}",
-              "legendFormat": "current {{ \"{{horizontalpodautoscaler}}\" }}",
+              "legendFormat": "current {{`{{horizontalpodautoscaler}}`}}",
               "refId": "A"
             },
             {
               "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"application\"}",
-              "legendFormat": "desired {{ \"{{horizontalpodautoscaler}}\" }}",
+              "legendFormat": "desired {{`{{horizontalpodautoscaler}}`}}",
               "refId": "B"
             }
           ]
@@ -455,7 +455,7 @@ data:
           "targets": [
             {
               "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"application\",pod=~\"api-core.*|api-public-read.*\"}[5m])) by (pod)",
-              "legendFormat": "{{ \"{{pod}}\" }}",
+              "legendFormat": "{{`{{pod}}`}}",
               "refId": "A"
             }
           ]
@@ -469,12 +469,12 @@ data:
           "targets": [
             {
               "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"application\"}",
-              "legendFormat": "current {{ \"{{horizontalpodautoscaler}}\" }}",
+              "legendFormat": "current {{`{{horizontalpodautoscaler}}`}}",
               "refId": "A"
             },
             {
               "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"application\"}",
-              "legendFormat": "desired {{ \"{{horizontalpodautoscaler}}\" }}",
+              "legendFormat": "desired {{`{{horizontalpodautoscaler}}`}}",
               "refId": "B"
             }
           ]
