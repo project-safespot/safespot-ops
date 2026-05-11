@@ -117,7 +117,7 @@ safespot:
     cloudwatchRaw:
       enabled: true
     systemOverview:
-      enabled: false
+      enabled: true
     apiCustom:
       enabled: false
 
