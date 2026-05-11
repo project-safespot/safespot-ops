@@ -119,7 +119,7 @@ safespot:
     systemOverview:
       enabled: true
     apiCustom:
-      enabled: false
+      enabled: true
 
   prometheusRules:
     redis:
