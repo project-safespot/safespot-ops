@@ -119,7 +119,7 @@ data:
           "datasource": "Prometheus",
           "targets": [
             {
-              "expr": "aws_sqs_approximate_number_of_messages_visible_maximum",
+              "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name!~\".*[dD][lL][qQ].*\"}",
               "legendFormat": "{{`{{ name }}`}}",
               "refId": "A"
             }
@@ -133,7 +133,7 @@ data:
           "datasource": "Prometheus",
           "targets": [
             {
-              "expr": "aws_sqs_approximate_age_of_oldest_message_maximum",
+              "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name!~\".*[dD][lL][qQ].*\"}",
               "legendFormat": "{{`{{ name }}`}}",
               "refId": "A"
             }
@@ -148,29 +148,65 @@ data:
           "datasource": "Prometheus",
           "targets": [
             {
-              "expr": "aws_sqs_number_of_messages_sent_sum",
+              "expr": "aws_sqs_number_of_messages_sent_sum{name!~\".*[dD][lL][qQ].*\"}",
               "legendFormat": "sent - {{`{{ name }}`}}",
               "refId": "A"
             },
             {
-              "expr": "aws_sqs_number_of_messages_deleted_sum",
+              "expr": "aws_sqs_number_of_messages_deleted_sum{name!~\".*[dD][lL][qQ].*\"}",
               "legendFormat": "deleted - {{`{{ name }}`}}",
               "refId": "B"
             }
           ]
         },
         {
+          "id": 102,
+          "title": "── DLQ ──",
+          "type": "text",
+          "gridPos": { "x": 0, "y": 19, "w": 24, "h": 1 },
+          "options": { "mode": "markdown" }
+        },
+        {
+          "id": 9,
+          "title": "DLQ Visible Messages",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 20, "w": 12, "h": 5 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name=~\".*[dD][lL][qQ].*\"}",
+              "legendFormat": "visible - {{`{{ name }}`}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "title": "DLQ Oldest Message Age (초)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 20, "w": 12, "h": 5 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*[dD][lL][qQ].*\"}",
+              "legendFormat": "age - {{`{{ name }}`}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
           "id": 103,
           "title": "── Lambda ──",
           "type": "text",
-          "gridPos": { "x": 0, "y": 19, "w": 24, "h": 1 },
+          "gridPos": { "x": 0, "y": 25, "w": 24, "h": 1 },
           "options": { "mode": "markdown" }
         },
         {
           "id": 11,
           "title": "Lambda Invocations / Errors / Throttles",
           "type": "timeseries",
-          "gridPos": { "x": 0, "y": 20, "w": 12, "h": 6 },
+          "gridPos": { "x": 0, "y": 26, "w": 12, "h": 6 },
           "datasource": "Prometheus",
           "targets": [
             {
@@ -194,7 +230,7 @@ data:
           "id": 12,
           "title": "Lambda Duration Average / Max (ms)",
           "type": "timeseries",
-          "gridPos": { "x": 12, "y": 20, "w": 12, "h": 6 },
+          "gridPos": { "x": 12, "y": 26, "w": 12, "h": 6 },
           "datasource": "Prometheus",
           "targets": [
             {
@@ -214,7 +250,7 @@ data:
           "id": 13,
           "title": "Lambda ConcurrentExecutions",
           "type": "timeseries",
-          "gridPos": { "x": 0, "y": 26, "w": 12, "h": 5 },
+          "gridPos": { "x": 0, "y": 32, "w": 12, "h": 5 },
           "datasource": "Prometheus",
           "targets": [
             {
