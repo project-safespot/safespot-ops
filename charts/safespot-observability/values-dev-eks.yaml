@@ -120,6 +120,8 @@ safespot:
       enabled: true
     apiCustom:
       enabled: true
+    loadtest:
+      enabled: true
 
   prometheusRules:
     redis:

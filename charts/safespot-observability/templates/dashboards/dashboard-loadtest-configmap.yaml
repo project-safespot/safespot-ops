@@ -1,0 +1,513 @@
+{{- if .Values.safespot.dashboards.loadtest.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-loadtest
+  namespace: {{ .Values.safespot.namespace.monitoring }}
+  labels:
+    grafana_dashboard: "1"
+    env: {{ .Values.safespot.env }}
+    region: {{ .Values.safespot.region }}
+data:
+  loadtest.json: |
+    {
+      "uid": "safespot-loadtest",
+      "title": "SafeSpot — Load Test Scenario Dashboard",
+      "tags": ["safespot", "loadtest", "jmeter", "performance"],
+      "timezone": "Asia/Seoul",
+      "schemaVersion": 36,
+      "refresh": "10s",
+      "time": { "from": "now-1h", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "service",
+            "type": "custom",
+            "query": "api-core,api-public-read",
+            "multi": true,
+            "includeAll": true,
+            "current": {
+              "selected": true,
+              "text": "All",
+              "value": "$__all"
+            }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 100,
+          "title": "── Load Test Scenario Summary ──",
+          "type": "text",
+          "gridPos": { "x": 0, "y": 0, "w": 24, "h": 4 },
+          "options": {
+            "mode": "markdown",
+            "content": "## SafeSpot 부하테스트 통합 대시보드\n\n### 시나리오\n- **Smoke Test**: 5 users / 1 loop / Ramp-up 5s / API 경로·토큰·응답 확인\n- **기준 성능 테스트**: TPS 1,000 / 30분 / 에러율 1% 이하 / 목표 응답시간 유지\n- **Stress Test**: TPS 5,000 / 10분 / DB·Redis·Pod·HPA 병목 확인\n\n### 사용 메트릭\n기존 API HTTP, Redis, EKS, CloudWatch/YACE 대시보드에서 사용 중인 메트릭만 재배치"
+          }
+        },
+        {
+          "id": 1,
+          "title": "Current Total TPS",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 4, "w": 6, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m]))",
+              "legendFormat": "total tps",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1000 },
+                  { "color": "red", "value": 5000 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "Current 5xx Error Rate (%)",
+          "type": "stat",
+          "gridPos": { "x": 6, "y": 4, "w": 6, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\",status=~\"5..\"}[1m])) / sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) * 100",
+              "legendFormat": "5xx %",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "Current p95 Latency",
+          "type": "stat",
+          "gridPos": { "x": 12, "y": 4, "w": 6, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m])) by (le))",
+              "legendFormat": "p95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 0.75 },
+                  { "color": "red", "value": 1.0 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "RDS CPU (%)",
+          "type": "stat",
+          "gridPos": { "x": 18, "y": 4, "w": 6, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "aws_rds_cpuutilization_average",
+              "legendFormat": "rds cpu",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 70 },
+                  { "color": "red", "value": 85 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 101,
+          "title": "── Smoke Test: API 정상 응답 확인 ──",
+          "type": "text",
+          "gridPos": { "x": 0, "y": 8, "w": 24, "h": 2 },
+          "options": {
+            "mode": "markdown",
+            "content": "### Smoke Test 확인값\n- 전체 요청이 발생하는지\n- 4xx/5xx 에러가 없는지\n- 핵심 API p95 latency가 비정상적으로 높지 않은지"
+          }
+        },
+        {
+          "id": 5,
+          "title": "Smoke - TPS by Service",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 10, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) by (service)",
+              "legendFormat": "{{ \"{{service}}\" }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 6,
+          "title": "Smoke - HTTP Status Count by Service",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 10, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) by (service, status)",
+              "legendFormat": "{{ \"{{service}}\" }} {{ \"{{status}}\" }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 7,
+          "title": "Smoke - 4xx / 5xx Error Rate (%)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 16, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\",status=~\"4..\"}[1m])) by (service) / sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) by (service) * 100",
+              "legendFormat": "4xx {{ \"{{service}}\" }}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\",status=~\"5..\"}[1m])) by (service) / sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) by (service) * 100",
+              "legendFormat": "5xx {{ \"{{service}}\" }}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percent" } }
+        },
+        {
+          "id": 8,
+          "title": "Smoke - p95 Latency by URI",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 16, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m])) by (le, service, uri))",
+              "legendFormat": "p95 {{ \"{{service}}\" }} {{ \"{{uri}}\" }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 102,
+          "title": "── Baseline TPS 1,000: 안정성 확인 ──",
+          "type": "text",
+          "gridPos": { "x": 0, "y": 22, "w": 24, "h": 2 },
+          "options": {
+            "mode": "markdown",
+            "content": "### 기준 성능 테스트 확인값\n- TPS 1,000 근접 여부\n- 에러율 1% 이하 유지\n- p95/p99 latency 목표치 유지\n- Pod CPU/Memory, Redis, RDS가 안정적인지 확인"
+          }
+        },
+        {
+          "id": 9,
+          "title": "Baseline - TPS by Service",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 24, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) by (service)",
+              "legendFormat": "{{ \"{{service}}\" }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 10,
+          "title": "Baseline - p95 / p99 Latency by URI",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 24, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m])) by (le, service, uri))",
+              "legendFormat": "p95 {{ \"{{service}}\" }} {{ \"{{uri}}\" }}",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m])) by (le, service, uri))",
+              "legendFormat": "p99 {{ \"{{service}}\" }} {{ \"{{uri}}\" }}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 11,
+          "title": "Baseline - Pod CPU Usage",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 30, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"application\",pod=~\"api-core.*|api-public-read.*\",container!=\"\"}[1m])) by (pod)",
+              "legendFormat": "{{ \"{{pod}}\" }}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "title": "Baseline - Pod Memory Working Set",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 30, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(container_memory_working_set_bytes{namespace=\"application\",pod=~\"api-core.*|api-public-read.*\",container!=\"\"}) by (pod)",
+              "legendFormat": "{{ \"{{pod}}\" }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "id": 13,
+          "title": "Baseline - HPA Current / Desired Replicas",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 36, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"application\"}",
+              "legendFormat": "current {{ \"{{horizontalpodautoscaler}}\" }}",
+              "refId": "A"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"application\"}",
+              "legendFormat": "desired {{ \"{{horizontalpodautoscaler}}\" }}",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "id": 14,
+          "title": "Baseline - Redis Hit / Miss",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 36, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "rate(redis_keyspace_hits_total[1m])",
+              "legendFormat": "hits/sec",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(redis_keyspace_misses_total[1m])",
+              "legendFormat": "misses/sec",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "id": 15,
+          "title": "Baseline - RDS CPU / Connections",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 42, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "aws_rds_cpuutilization_average",
+              "legendFormat": "cpu %",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_rds_database_connections_average",
+              "legendFormat": "connections",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "id": 16,
+          "title": "Baseline - Redis Connected Clients / Evictions",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 42, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "redis_connected_clients",
+              "legendFormat": "connected clients",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(redis_evicted_keys_total[1m])",
+              "legendFormat": "evicted/sec",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "id": 103,
+          "title": "── Stress TPS 5,000: 병목 확인 ──",
+          "type": "text",
+          "gridPos": { "x": 0, "y": 48, "w": 24, "h": 2 },
+          "options": {
+            "mode": "markdown",
+            "content": "### Stress Test 확인값\n- 어느 자원이 먼저 한계에 도달하는지 확인\n- DB CPU/Connection/Latency, Redis Eviction, HPA replica, Pod restart 중심 확인"
+          }
+        },
+        {
+          "id": 17,
+          "title": "Stress - RDS CPU / Connections",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 50, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "aws_rds_cpuutilization_average",
+              "legendFormat": "cpu %",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_rds_database_connections_average",
+              "legendFormat": "connections",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "title": "Stress - RDS Read / Write Latency",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 50, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "aws_rds_read_latency_average * 1000",
+              "legendFormat": "read latency ms",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_rds_write_latency_average * 1000",
+              "legendFormat": "write latency ms",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ms" } }
+        },
+        {
+          "id": 19,
+          "title": "Stress - Redis Evicted / Expired Keys",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 56, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "rate(redis_evicted_keys_total[1m])",
+              "legendFormat": "evicted/sec",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(redis_expired_keys_total[1m])",
+              "legendFormat": "expired/sec",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "id": 20,
+          "title": "Stress - Pod Restart Count",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 56, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"application\",pod=~\"api-core.*|api-public-read.*\"}[5m])) by (pod)",
+              "legendFormat": "{{ \"{{pod}}\" }}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 21,
+          "title": "Stress - HPA Current / Desired Replicas",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 62, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"application\"}",
+              "legendFormat": "current {{ \"{{horizontalpodautoscaler}}\" }}",
+              "refId": "A"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"application\"}",
+              "legendFormat": "desired {{ \"{{horizontalpodautoscaler}}\" }}",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "id": 22,
+          "title": "Stress - Redis Rejected Connections / Slowlog",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 62, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "rate(redis_rejected_connections_total[1m])",
+              "legendFormat": "rejected/sec",
+              "refId": "A"
+            },
+            {
+              "expr": "redis_slowlog_length",
+              "legendFormat": "slowlog length",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "id": 104,
+          "title": "── Result Guide ──",
+          "type": "text",
+          "gridPos": { "x": 0, "y": 68, "w": 24, "h": 4 },
+          "options": {
+            "mode": "markdown",
+            "content": "## 판단 기준\n\n### Smoke\n- 에러율 0%\n- 핵심 API 정상 응답\n\n### TPS 1,000\n- 에러율 1% 이하\n- p95 latency 목표치 유지\n- Pod CPU/Memory, Redis, RDS 안정\n\n### Stress TPS 5,000\n- 먼저 한계에 도달하는 자원 확인\n- RDS CPU/Connections/Latency 급등 여부\n- Redis eviction/rejected connection 발생 여부\n- HPA desired replica 증가 및 max 도달 여부\n- Pod restart 발생 여부"
+          }
+        }
+      ]
+    }
+{{- end }}
