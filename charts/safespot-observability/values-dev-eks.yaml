@@ -43,6 +43,9 @@ kube-prometheus-stack:
         jsonData:
           authType: default
           defaultRegion: ap-northeast-2
+    grafanaSpec:
+      nodeSelector:
+        safespot.io/node-group: ops
 
   prometheus:
     serviceAccount:
