@@ -26,7 +26,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [{
             "expr": "100 - (avg by (node) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
-            "legendFormat": "{{ "{{node}}" }}"
+            "legendFormat": "node {{ "{{node}}" }} cpu"
           }],
           "fieldConfig": { "defaults": { "unit": "percent" } }
         },
@@ -38,7 +38,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [{
             "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
-            "legendFormat": "memory usage %"
+            "legendFormat": "node {{ "{{instance}}" }} memory"
           }],
           "fieldConfig": { "defaults": { "unit": "percent" } }
         },
@@ -50,7 +50,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [{
             "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\"}[5m])) by (pod)",
-            "legendFormat": "{{ "{{pod}}" }}"
+            "legendFormat": "pod {{ "{{pod}}" }} cpu"
           }],
           "fieldConfig": { "defaults": { "unit": "cores" } }
         },
@@ -62,7 +62,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [{
             "expr": "sum(container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\"}) by (pod)",
-            "legendFormat": "{{ "{{pod}}" }}"
+            "legendFormat": "pod {{ "{{pod}}" }} memory"
           }],
           "fieldConfig": { "defaults": { "unit": "bytes" } }
         },
@@ -74,7 +74,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [{
             "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"{{ .Values.safespot.namespace.application }}\"}[1h])",
-            "legendFormat": "{{ "{{pod}}" }}/{{ "{{container}}" }}"
+            "legendFormat": "pod {{ "{{pod}}" }} / container {{ "{{container}}" }} restarts"
           }]
         },
         {
@@ -86,15 +86,15 @@ data:
           "targets": [
             {
               "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"{{ .Values.safespot.namespace.application }}\"}",
-              "legendFormat": "desired {{ "{{horizontalpodautoscaler}}" }}"
+              "legendFormat": "hpa {{ "{{horizontalpodautoscaler}}" }} desired"
             },
             {
               "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"{{ .Values.safespot.namespace.application }}\"}",
-              "legendFormat": "current {{ "{{horizontalpodautoscaler}}" }}"
+              "legendFormat": "hpa {{ "{{horizontalpodautoscaler}}" }} current"
             },
             {
               "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"{{ .Values.safespot.namespace.application }}\"}",
-              "legendFormat": "max {{ "{{horizontalpodautoscaler}}" }}"
+              "legendFormat": "hpa {{ "{{horizontalpodautoscaler}}" }} max"
             }
           ]
         },
@@ -107,15 +107,15 @@ data:
           "targets": [
             {
               "expr": "count(kube_pod_status_phase{namespace=\"{{ .Values.safespot.namespace.application }}\",phase=\"Running\"})",
-              "legendFormat": "Running"
+              "legendFormat": "application pods running"
             },
             {
               "expr": "count(kube_pod_status_phase{namespace=\"{{ .Values.safespot.namespace.application }}\",phase=\"Pending\"}) or vector(0)",
-              "legendFormat": "Pending"
+              "legendFormat": "application pods pending"
             },
             {
               "expr": "count(kube_pod_status_phase{namespace=\"{{ .Values.safespot.namespace.application }}\",phase=\"Failed\"}) or vector(0)",
-              "legendFormat": "Failed"
+              "legendFormat": "application pods failed"
             }
           ]
         },
@@ -126,8 +126,8 @@ data:
           "gridPos": { "x": 12, "y": 17, "w": 12, "h": 4 },
           "datasource": { "uid": "prometheus" },
           "targets": [
-            { "expr": "sum(rate(node_disk_read_bytes_total[5m]))", "legendFormat": "read bytes/sec" },
-            { "expr": "sum(rate(node_disk_written_bytes_total[5m]))", "legendFormat": "write bytes/sec" }
+            { "expr": "sum(rate(node_disk_read_bytes_total[5m]))", "legendFormat": "cluster disk read bytes/sec" },
+            { "expr": "sum(rate(node_disk_written_bytes_total[5m]))", "legendFormat": "cluster disk write bytes/sec" }
           ],
           "fieldConfig": { "defaults": { "unit": "bytes" } }
         },
@@ -140,11 +140,11 @@ data:
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\", pod!=\"\", uri!=\"UNKNOWN\"}[5m])) by (le, pod))",
-              "legendFormat": "p95 {{ "{{pod}}" }}"
+              "legendFormat": "pod {{ "{{pod}}" }} p95 latency"
             },
             {
               "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\", pod!=\"\", uri!=\"UNKNOWN\"}[5m])) by (le, pod))",
-              "legendFormat": "p99 {{ "{{pod}}" }}"
+              "legendFormat": "pod {{ "{{pod}}" }} p99 latency"
             }
           ],
           "fieldConfig": {
@@ -163,7 +163,7 @@ data:
           "targets": [
             {
               "expr": "count by (node) (kube_pod_info{namespace=\"{{ .Values.safespot.namespace.application }}\"})",
-              "legendFormat": "{{ "{{node}}" }}"
+              "legendFormat": "node {{ "{{node}}" }} pod count"
             }
           ],
           "fieldConfig": {
@@ -182,7 +182,7 @@ data:
           "targets": [
             {
               "expr": "sum by (node) (sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\",pod!=\"\"}[5m])) * on (namespace, pod) group_left(node) kube_pod_info{namespace=\"{{ .Values.safespot.namespace.application }}\"})",
-              "legendFormat": "{{ "{{node}}" }}"
+              "legendFormat": "node {{ "{{node}}" }} application cpu"
             }
           ],
           "fieldConfig": {
@@ -201,7 +201,7 @@ data:
           "targets": [
             {
               "expr": "sum by (node) (sum by (namespace, pod) (container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\",pod!=\"\"}) * on (namespace, pod) group_left(node) kube_pod_info{namespace=\"{{ .Values.safespot.namespace.application }}\"})",
-              "legendFormat": "{{ "{{node}}" }}"
+              "legendFormat": "node {{ "{{node}}" }} application memory"
             }
           ],
           "fieldConfig": {
