@@ -106,15 +106,15 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "count(kube_pod_status_phase{namespace=\"{{ .Values.safespot.namespace.application }}\",phase=\"Running\"})",
+              "expr": "sum(kube_pod_status_phase{namespace=\"{{ .Values.safespot.namespace.application }}\",phase=\"Running\"} == 1) or vector(0)",
               "legendFormat": "application pods running"
             },
             {
-              "expr": "count(kube_pod_status_phase{namespace=\"{{ .Values.safespot.namespace.application }}\",phase=\"Pending\"}) or vector(0)",
+              "expr": "sum(kube_pod_status_phase{namespace=\"{{ .Values.safespot.namespace.application }}\",phase=\"Pending\"} == 1) or vector(0)",
               "legendFormat": "application pods pending"
             },
             {
-              "expr": "count(kube_pod_status_phase{namespace=\"{{ .Values.safespot.namespace.application }}\",phase=\"Failed\"}) or vector(0)",
+              "expr": "sum(kube_pod_status_phase{namespace=\"{{ .Values.safespot.namespace.application }}\",phase=\"Failed\"} == 1) or vector(0)",
               "legendFormat": "application pods failed"
             }
           ]
