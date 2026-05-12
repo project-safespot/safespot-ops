@@ -112,33 +112,42 @@ data:
         },
         {
           "id": 16,
-          "title": "Redis Cache Hit / Miss",
+          "title": "Cache Hit / Miss / ParseError by Cache",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
           "datasource": { "uid": "prometheus" },
+          "description": "metric: safespot_cache_requests_total | cache: disaster_messages / disaster_detail / shelter_status / weather / air_quality",
           "targets": [
             {
-              "expr": "sum by (endpoint) (rate(api_read_cache_request_total{result=\"hit\"}[1m]))",
-              "legendFormat": "hit - {{ "{{endpoint}}" }}"
+              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=\"hit\"}[1m]))",
+              "legendFormat": "hit — {{ "{{cache}}" }}"
             },
             {
-              "expr": "sum by (endpoint) (rate(api_read_cache_request_total{result=\"miss\"}[1m]))",
-              "legendFormat": "miss - {{ "{{endpoint}}" }}"
+              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=\"miss\"}[1m]))",
+              "legendFormat": "miss — {{ "{{cache}}" }}"
+            },
+            {
+              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=\"parse_error\"}[1m]))",
+              "legendFormat": "parse_error — {{ "{{cache}}" }}"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "ops" } }
         },
         {
           "id": 17,
-          "title": "Cache Hit Rate (Warning: <90%)",
+          "title": "Cache Hit Rate (Warning <90%)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
           "datasource": { "uid": "prometheus" },
-          "description": "Warning: hit rate <90% | metric: api_read_cache_request_total",
+          "description": "전체 hit rate + cache별 hit rate | metric: safespot_cache_requests_total | 기동 직후 No data일 수 있음",
           "targets": [
             {
-              "expr": "sum(rate(api_read_cache_request_total{result=\"hit\"}[5m])) / (sum(rate(api_read_cache_request_total{result=\"hit\"}[5m])) + sum(rate(api_read_cache_request_total{result=\"miss\"}[5m])))",
-              "legendFormat": "cache hit rate"
+              "expr": "sum(rate(safespot_cache_requests_total{service=\"api-public-read\",result=\"hit\"}[5m])) / sum(rate(safespot_cache_requests_total{service=\"api-public-read\",result=~\"hit|miss|parse_error\"}[5m]))",
+              "legendFormat": "overall hit rate"
+            },
+            {
+              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=\"hit\"}[5m])) / sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=~\"hit|miss|parse_error\"}[5m]))",
+              "legendFormat": "{{ "{{cache}}" }} hit rate"
             }
           ],
           "fieldConfig": {
@@ -152,28 +161,29 @@ data:
         },
         {
           "id": 18,
-          "title": "Redis Fallback 발생",
+          "title": "Redis Fallback by Cache & Reason",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
           "datasource": { "uid": "prometheus" },
+          "description": "metric: safespot_cache_fallback_total | reason: redis_error / timeout / …",
           "targets": [
             {
-              "expr": "sum by (endpoint, reason) (rate(api_read_cache_fallback_total[1m]))",
-              "legendFormat": "{{ "{{endpoint}}" }} - {{ "{{reason}}" }}"
+              "expr": "sum by (cache, reason) (rate(safespot_cache_fallback_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "{{ "{{cache}}" }} — {{ "{{reason}}" }}"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "ops" } }
         },
         {
           "id": 19,
-          "title": "Redis Fallback Rate (Warning >1%)",
+          "title": "Redis Fallback Rate vs Requests (Warning >1%)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
           "datasource": { "uid": "prometheus" },
-          "description": "Warning: >1% of total requests | metric: api_read_cache_fallback_total",
+          "description": "Warning: >1% | safespot_cache_fallback_total / http_server_requests",
           "targets": [
             {
-              "expr": "sum(rate(api_read_cache_fallback_total[5m])) / sum(rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",uri!~\"/actuator.*|UNKNOWN\"}[5m]))",
+              "expr": "sum(rate(safespot_cache_fallback_total{service=\"api-public-read\"}[5m])) / sum(rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",uri!~\"/actuator.*|UNKNOWN\"}[5m]))",
               "legendFormat": "redis fallback rate"
             }
           ],
@@ -186,15 +196,60 @@ data:
         },
         {
           "id": 20,
-          "title": "DB Fallback 쿼리 수",
+          "title": "DB Fallback Query Count by Repository & Reason",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
           "datasource": { "uid": "prometheus" },
-          "description": "metric: api_read_db_fallback_query_total",
+          "description": "metric: safespot_db_fallback_queries_total | repository: disaster_alert / shelter_status / weather_log / air_quality_log",
           "targets": [
             {
-              "expr": "sum by (endpoint) (rate(api_read_db_fallback_query_total[1m]))",
-              "legendFormat": "{{ "{{endpoint}}" }}"
+              "expr": "sum by (repository, reason) (rate(safespot_db_fallback_queries_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "{{ "{{repository}}" }} — {{ "{{reason}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+        {
+          "id": 21,
+          "title": "Redis Read Average Latency by Cache",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+          "datasource": { "uid": "prometheus" },
+          "description": "metric: safespot_redis_read_seconds_* | hit/miss 포함 전체 Redis 읽기 지연",
+          "targets": [
+            {
+              "expr": "sum by (cache) (rate(safespot_redis_read_seconds_sum{service=\"api-public-read\"}[5m])) / sum by (cache) (rate(safespot_redis_read_seconds_count{service=\"api-public-read\"}[5m]))",
+              "legendFormat": "{{ "{{cache}}" }} avg read latency"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 4 } }
+        },
+        {
+          "id": 22,
+          "title": "DB Fallback Average Latency by Repository",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 42 },
+          "datasource": { "uid": "prometheus" },
+          "description": "metric: safespot_db_fallback_seconds_* | fallback 발생 시 DB 쿼리 지연",
+          "targets": [
+            {
+              "expr": "sum by (repository) (rate(safespot_db_fallback_seconds_sum{service=\"api-public-read\"}[5m])) / sum by (repository) (rate(safespot_db_fallback_seconds_count{service=\"api-public-read\"}[5m]))",
+              "legendFormat": "{{ "{{repository}}" }} avg fallback latency"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 4 } }
+        },
+        {
+          "id": 23,
+          "title": "Cache Regeneration Requested by Cache & Reason",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 42 },
+          "datasource": { "uid": "prometheus" },
+          "description": "metric: safespot_cache_regeneration_requested_total | cache miss / stale 등으로 재생성 요청된 횟수",
+          "targets": [
+            {
+              "expr": "sum by (cache, reason, result) (rate(safespot_cache_regeneration_requested_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "{{ "{{cache}}" }} {{ "{{reason}}" }} → {{ "{{result}}" }}"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "ops" } }
@@ -204,14 +259,14 @@ data:
           "title": "JVM Heap",
           "type": "row",
           "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 50 },
           "panels": []
         },
         {
           "id": 26,
           "title": "Heap Total Usage % (Warning >80%, Critical >90%)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 43 },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 51 },
           "datasource": { "uid": "prometheus" },
           "description": "Warning: >80% for 5m | Critical: >90% for 5m",
           "targets": [
@@ -231,33 +286,26 @@ data:
         },
         {
           "id": 27,
-          "title": "Heap by Pool: Eden / Survivor / Old",
+          "title": "Heap by Pool: Eden / Survivor — bytes (used)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 43 },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 51 },
           "datasource": { "uid": "prometheus" },
-          "description": "Eden: 단기 객체 | Survivor: Young GC 생존 | Old: 장기 생존",
+          "description": "Eden/Survivor는 JVM에 따라 max가 부정확하므로 used bytes 절대값으로 표시. Old Gen은 우측 패널 참조.",
           "targets": [
             {
-              "expr": "sum by (pod, id) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",area=\"heap\"}) / sum by (pod, id) (jvm_memory_max_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",area=\"heap\"})",
+              "expr": "sum by (pod, id) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",area=\"heap\",id!~\".*[Oo]ld.*\"})",
               "legendFormat": "{{ "{{pod}}" }} / {{ "{{id}}" }}"
             }
           ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percentunit",
-              "min": 0,
-              "max": 1,
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.8 }, { "color": "red", "value": 0.9 }] }
-            }
-          }
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
         },
         {
           "id": 28,
           "title": "Old Gen Usage % (Warning >70%, Critical >85%)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 43 },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 51 },
           "datasource": { "uid": "prometheus" },
-          "description": "Warning: >70% for 5m | Critical: >85% for 5m",
+          "description": "Warning: >70% for 5m | Critical: >85% for 5m — Full GC 전조",
           "targets": [
             {
               "expr": "sum by (pod) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",area=\"heap\",id=~\".*[Oo]ld.*\"}) / sum by (pod) (jvm_memory_max_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",area=\"heap\",id=~\".*[Oo]ld.*\"})",
@@ -277,9 +325,9 @@ data:
           "id": 29,
           "title": "GC Pause Time Ratio (Warning >5%, Critical >10%)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 51 },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 59 },
           "datasource": { "uid": "prometheus" },
-          "description": "초당 GC 소비 시간 비율. 0.05=5%(warning), 0.10=10%(critical)",
+          "description": "초당 GC 소비 시간 비율. 0.05=5%(warning), 0.10=10%(critical) | GC pause 미발생 시 No data",
           "targets": [
             {
               "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_sum{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}[1m]))",
@@ -297,9 +345,9 @@ data:
           "id": 30,
           "title": "Average GC Pause (Warning >200ms, Critical >1s)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 51 },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 59 },
           "datasource": { "uid": "prometheus" },
-          "description": "Warning: >200ms | Critical: >1s",
+          "description": "Warning: >200ms | Critical: >1s | GC pause 미발생 시 No data",
           "targets": [
             {
               "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_sum{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}[5m])) / sum by (pod) (rate(jvm_gc_pause_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}[5m]))",
@@ -318,7 +366,7 @@ data:
           "id": 31,
           "title": "Non-Heap Usage (Metaspace / CodeCache 등)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 51 },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 59 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -333,14 +381,14 @@ data:
           "title": "Container / CPU",
           "type": "row",
           "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 59 },
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 67 },
           "panels": []
         },
         {
           "id": 41,
           "title": "Container Memory Working Set",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 60 },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 68 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -354,7 +402,7 @@ data:
           "id": 42,
           "title": "Memory Limit Usage % (Warning >85%, Critical >95%)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 60 },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 68 },
           "datasource": { "uid": "prometheus" },
           "description": "Warning: >85% | Critical: >95%",
           "targets": [
@@ -376,7 +424,7 @@ data:
           "id": 43,
           "title": "JVM vs Container Memory Gap (off-heap 추정)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 60 },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 68 },
           "datasource": { "uid": "prometheus" },
           "description": "container working_set - JVM total used = native/off-heap/direct buffer 추정값",
           "targets": [
@@ -391,7 +439,7 @@ data:
           "id": 44,
           "title": "CPU Usage by Pod",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 68 },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 76 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -405,7 +453,7 @@ data:
           "id": 45,
           "title": "CPU Throttling Ratio (Warning >20%)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 68 },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 76 },
           "datasource": { "uid": "prometheus" },
           "description": "Warning: >20% throttled",
           "targets": [
@@ -426,14 +474,14 @@ data:
           "title": "Thread / Tomcat",
           "type": "row",
           "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 76 },
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 84 },
           "panels": []
         },
         {
           "id": 51,
           "title": "JVM Live Threads",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 77 },
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 85 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -447,7 +495,7 @@ data:
           "id": 52,
           "title": "JVM Peak Threads",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 77 },
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 85 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -461,7 +509,7 @@ data:
           "id": 53,
           "title": "Tomcat Busy Threads",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 77 },
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 85 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -475,7 +523,7 @@ data:
           "id": 54,
           "title": "Tomcat Busy Ratio",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 77 },
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 85 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -496,14 +544,14 @@ data:
           "title": "HPA / Scheduling",
           "type": "row",
           "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 85 },
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 93 },
           "panels": []
         },
         {
           "id": 61,
           "title": "HPA Replicas (Current / Desired / Max)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 86 },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 94 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -525,7 +573,7 @@ data:
           "id": 62,
           "title": "Pending Pods (application ns)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 86 },
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 94 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -539,7 +587,7 @@ data:
           "id": 63,
           "title": "api-public-read Pods by Node",
           "type": "stat",
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 86 },
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 94 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {

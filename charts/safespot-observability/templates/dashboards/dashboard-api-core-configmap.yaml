@@ -134,25 +134,18 @@ data:
         },
         {
           "id": 12,
-          "title": "Heap by Pool: Eden / Survivor / Old",
+          "title": "Heap by Pool: Eden / Survivor — bytes (used)",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
           "datasource": { "uid": "prometheus" },
-          "description": "Eden: 단기 객체 | Survivor: Young GC 생존 | Old: 장기 생존 | Humongous: 대용량 객체",
+          "description": "Eden/Survivor는 JVM에 따라 max가 부정확하므로 used bytes 절대값으로 표시. Old Gen은 우측 패널 참조.",
           "targets": [
             {
-              "expr": "sum by (pod, id) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\",area=\"heap\"}) / sum by (pod, id) (jvm_memory_max_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\",area=\"heap\"})",
+              "expr": "sum by (pod, id) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\",area=\"heap\",id!~\".*[Oo]ld.*\"})",
               "legendFormat": "{{ "{{pod}}" }} / {{ "{{id}}" }}"
             }
           ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percentunit",
-              "min": 0,
-              "max": 1,
-              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.8 }, { "color": "red", "value": 0.9 }] }
-            }
-          }
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
         },
         {
           "id": 13,
