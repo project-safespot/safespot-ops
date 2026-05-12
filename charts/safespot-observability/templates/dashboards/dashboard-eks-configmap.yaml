@@ -130,26 +130,12 @@ data:
             { "expr": "sum(rate(node_disk_written_bytes_total[5m]))", "legendFormat": "write bytes/sec" }
           ],
           "fieldConfig": { "defaults": { "unit": "bytes" } }
-        }
-      ]
-    },
-            {
-          "id": 8,
-          "title": "Node Disk I/O (bytes/sec)",
-          "type": "timeseries",
-          "gridPos": { "x": 12, "y": 17, "w": 12, "h": 4 },
-          "datasource": { "uid": "prometheus" },
-          "targets": [
-            { "expr": "sum(rate(node_disk_read_bytes_total[5m]))", "legendFormat": "read bytes/sec" },
-            { "expr": "sum(rate(node_disk_written_bytes_total[5m]))", "legendFormat": "write bytes/sec" }
-          ],
-          "fieldConfig": { "defaults": { "unit": "bytes" } }
         },
         {
           "id": 9,
           "title": "Pod HTTP Latency p95 / p99",
           "type": "timeseries",
-          "gridPos": { "x": 0, "y": 21, "w": 12, "h": 6 },
+          "gridPos": { "x": 0, "y": 21, "w": 24, "h": 6 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -168,4 +154,6 @@ data:
             }
           }
         }
+      ]
+    }
 {{- end }}
