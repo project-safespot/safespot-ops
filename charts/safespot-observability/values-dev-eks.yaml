@@ -91,31 +91,6 @@ kube-prometheus-stack:
             resources:
               requests:
                 storage: 20Gi
-      nodeSelector:
-        safespot.io/node-group: ops
-      tolerations:
-        - key: "safespot.io/dedicated"
-          operator: "Equal"
-          value: "ops"
-          effect: "NoSchedule"
-
-  prometheusOperator:
-    nodeSelector:
-      safespot.io/node-group: ops
-    tolerations:
-      - key: "safespot.io/dedicated"
-        operator: "Equal"
-        value: "ops"
-        effect: "NoSchedule"
-
-  kube-state-metrics:
-    nodeSelector:
-      safespot.io/node-group: ops
-    tolerations:
-      - key: "safespot.io/dedicated"
-        operator: "Equal"
-        value: "ops"
-        effect: "NoSchedule"
 
   alertmanager:
     service:
@@ -131,13 +106,6 @@ kube-prometheus-stack:
             resources:
               requests:
                 storage: 5Gi
-      nodeSelector:
-        safespot.io/node-group: ops
-      tolerations:
-        - key: "safespot.io/dedicated"
-          operator: "Equal"
-          value: "ops"
-          effect: "NoSchedule"
     config:
       route:
         receiver: slack
@@ -156,80 +124,14 @@ kube-prometheus-stack:
               channel: "#더존비즈온팀프로젝트"
               send_resolved: true
 
-              title: >-
-                [{{ .Status | toUpper }}:{{ len .Alerts }}] {{ .CommonLabels.alertname }}{{ if .CommonLabels.namespace }} / ns={{ .CommonLabels.namespace }}{{ end }}
+              title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
 
-              text: |-
+              text: >-
+                *Severity:* {{ .CommonLabels.severity }}
+                *Namespace:* {{ .CommonLabels.namespace }}
+
                 {{ range .Alerts }}
-                *Alert:* `{{ .Labels.alertname }}`
-                *Status:* `{{ .Status }}`
-                *Severity:* `{{ .Labels.severity }}`
-                {{- if .Labels.namespace }}
-                *Namespace:* `{{ .Labels.namespace }}`
-                {{- end }}
-                {{- if .Labels.pod }}
-                *Pod:* `{{ .Labels.pod }}`
-                {{- end }}
-                {{- if .Labels.container }}
-                *Container:* `{{ .Labels.container }}`
-                {{- end }}
-                {{- if .Labels.deployment }}
-                *Deployment:* `{{ .Labels.deployment }}`
-                {{- end }}
-                {{- if .Labels.statefulset }}
-                *StatefulSet:* `{{ .Labels.statefulset }}`
-                {{- end }}
-                {{- if .Labels.daemonset }}
-                *DaemonSet:* `{{ .Labels.daemonset }}`
-                {{- end }}
-                {{- if .Labels.node }}
-                *Node:* `{{ .Labels.node }}`
-                {{- end }}
-                {{- if .Labels.job }}
-                *Job:* `{{ .Labels.job }}`
-                {{- end }}
-                {{- if .Labels.instance }}
-                *Instance:* `{{ .Labels.instance }}`
-                {{- end }}
-
-                *문제 요약*
-                {{- if .Annotations.summary }}
-                {{ .Annotations.summary }}
-                {{- else }}
-                summary annotation 없음
-                {{- end }}
-
-                *상세 원인*
-                {{- if .Annotations.description }}
-                {{ .Annotations.description }}
-                {{- else }}
-                description annotation 없음
-                {{- end }}
-
-                *확인할 것*
-                {{- if .Annotations.runbook }}
-                {{ .Annotations.runbook }}
-                {{- else if .Labels.pod }}
-                1. `kubectl get pod -n {{ .Labels.namespace }} {{ .Labels.pod }}`
-                2. `kubectl describe pod -n {{ .Labels.namespace }} {{ .Labels.pod }}`
-                3. `kubectl logs -n {{ .Labels.namespace }} {{ .Labels.pod }} --previous`
-                4. `kubectl get events -n {{ .Labels.namespace }} --sort-by=.lastTimestamp`
-                {{- else if .Labels.job }}
-                1. Prometheus UI > Status > Targets에서 `{{ .Labels.job }}` target의 last error 확인
-                2. `kubectl get servicemonitor -A`
-                3. `kubectl get endpoints -A | grep {{ .Labels.job }}`
-                4. 대상 Service와 `/actuator/prometheus` endpoint 연결 상태 확인
-                {{- else }}
-                1. Alert label의 namespace/job/instance 기준으로 대상 리소스 확인
-                2. Prometheus UI > Alerts 또는 Targets에서 상세 원인 확인
-                3. Grafana에서 같은 시간대 CPU/Memory/Restart/Ready 상태 확인
-                {{- end }}
-
-                *시작 시각:* {{ .StartsAt }}
-                {{- if eq .Status "resolved" }}
-                *해결 시각:* {{ .EndsAt }}
-                {{- end }}
-                ---
+                • {{ .Annotations.summary }}
                 {{ end }}
 
 # EKS context path 적용 (Ingress에서 path-prefix를 붙이는 경우)
@@ -257,10 +159,6 @@ safespot:
     systemOverview:
       enabled: true
     apiCustom:
-      enabled: true
-    appOverview:
-      enabled: true
-    jvmGc:
       enabled: true
     loadtest:
       enabled: true
@@ -323,14 +221,6 @@ prometheus-adapter:
     url: http://safespot-observability-dev-prometheus.monitoring.svc
     port: 9090
 
-  nodeSelector:
-    safespot.io/node-group: ops
-  tolerations:
-    - key: "safespot.io/dedicated"
-      operator: "Equal"
-      value: "ops"
-      effect: "NoSchedule"
-
   rules:
     default: false
 
@@ -373,13 +263,6 @@ redis-exporter:
     limits:
       cpu: 100m
       memory: 128Mi
-  nodeSelector:
-    safespot.io/node-group: ops
-  tolerations:
-    - key: "safespot.io/dedicated"
-      operator: "Equal"
-      value: "ops"
-      effect: "NoSchedule"
 
 # subchart ServiceMonitor 사용 — 수동 SM 비활성 유지
 redisExporterExternalServiceMonitor:
@@ -391,9 +274,12 @@ fluent-bit:
   serviceAccount:
     create: true
     name: safespot-fluent-bit
+    # IRSA annotation은 values-dev.infra.generated.yaml에서 주입됩니다.
+    # SSM: /safespot/dev/observability/fluent-bit/irsa-role-arn
     annotations: {}
   tolerations:
     - operator: Exists
+
   config:
     service: |
       [SERVICE]
@@ -457,13 +343,6 @@ yace:
     limits:
       cpu: 200m
       memory: 256Mi
-  nodeSelector:
-    safespot.io/node-group: ops
-  tolerations:
-    - key: "safespot.io/dedicated"
-      operator: "Equal"
-      value: "ops"
-      effect: "NoSchedule"
   testConnection: false
   config: |-
     apiVersion: v1alpha1

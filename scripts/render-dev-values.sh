@@ -26,11 +26,12 @@
 #
 # 선택 SSM parameters:
 #   /${PROJECT}/${ENVIRONMENT}/observability/grafana/irsa-role-arn
+#   /${PROJECT}/${ENVIRONMENT}/observability/prometheus/irsa-role-arn
+#   /${PROJECT}/${ENVIRONMENT}/observability/fluent-bit/irsa-role-arn
 #   /${PROJECT}/${ENVIRONMENT}/data/aurora-cluster-identifier
 #   /${PROJECT}/${ENVIRONMENT}/data/redis-replication-group-id
 #   /${PROJECT}/${ENVIRONMENT}/async-worker/lambda-function-name
 #   /${PROJECT}/${ENVIRONMENT}/front-edge/alb-arn-suffix
-#   /${PROJECT}/${ENVIRONMENT}/observability/prometheus/irsa-role-arn
 # DLQ SSM parameters (name preferred, URL fallback):
 #   /${PROJECT}/${ENVIRONMENT}/async-worker/cache-refresh-dlq-name
 #   /${PROJECT}/${ENVIRONMENT}/async-worker/cache-refresh-dlq-url
@@ -181,6 +182,12 @@ else
   echo "  OK   /${PROJECT}/${ENVIRONMENT}/observability/prometheus/irsa-role-arn"
 fi
 
+FLUENTBIT_IRSA_ROLE_ARN="$(get_optional_parameter "/${PROJECT}/${ENVIRONMENT}/observability/fluent-bit/irsa-role-arn")"
+if [[ -z "$FLUENTBIT_IRSA_ROLE_ARN" ]]; then
+  echo "  SKIP /${PROJECT}/${ENVIRONMENT}/observability/fluent-bit/irsa-role-arn (not found — Fluent Bit IRSA annotation will be omitted)"
+else
+  echo "  OK   /${PROJECT}/${ENVIRONMENT}/observability/fluent-bit/irsa-role-arn"
+fi
 
 RDS_CLUSTER_IDENTIFIER="$(get_optional_parameter "/${PROJECT}/${ENVIRONMENT}/data/aurora-cluster-identifier")"
 [[ -z "$RDS_CLUSTER_IDENTIFIER" ]] \
@@ -249,7 +256,23 @@ redis-exporter:
 
 REDIS
 
-  # YACE IRSA annotation (required)
+  # Fluent Bit IRSA annotation (optional)
+  if [[ -n "${FLUENTBIT_IRSA_ROLE_ARN}" ]]; then
+    cat <<FLUENTBIT
+fluent-bit:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: "${FLUENTBIT_IRSA_ROLE_ARN}"
+
+FLUENTBIT
+  else
+    cat <<'FLUENTBIT_SKIP'
+# fluent-bit.serviceAccount.annotations are not set.
+# Fluent Bit IRSA role ARN was not found in SSM.
+
+FLUENTBIT_SKIP
+  fi
+
   # YACE IRSA annotation + generated config (required)
   cat <<YACE
 yace:
