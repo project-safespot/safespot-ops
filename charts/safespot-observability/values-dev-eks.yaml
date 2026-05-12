@@ -43,13 +43,6 @@ kube-prometheus-stack:
         jsonData:
           authType: default
           defaultRegion: ap-northeast-2
-    nodeSelector:
-      safespot.io/node-group: ops
-    tolerations:
-      - key: "safespot.io/dedicated"
-        operator: "Equal"
-        value: "ops"
-        effect: "NoSchedule"
 
   prometheus:
     serviceAccount:
