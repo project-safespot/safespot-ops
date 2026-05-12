@@ -94,6 +94,16 @@ kube-prometheus-stack:
               channel: "#더존비즈온팀프로젝트"
               send_resolved: true
 
+              title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+
+              text: >-
+                *Severity:* {{ .CommonLabels.severity }}
+                *Namespace:* {{ .CommonLabels.namespace }}
+
+                {{ range .Alerts }}
+                • {{ .Annotations.summary }}
+                {{ end }}
+
 # EKS context path 적용 (Ingress에서 path-prefix를 붙이는 경우)
 safespot:
   externalSecrets:
@@ -229,7 +239,7 @@ redisExporterExternalServiceMonitor:
   enabled: false
 
 fluent-bit:
-  enabled: true
+  enabled: false
 
   serviceAccount:
     create: true
