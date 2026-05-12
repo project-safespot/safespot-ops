@@ -46,6 +46,11 @@ kube-prometheus-stack:
     grafanaSpec:
       nodeSelector:
         safespot.io/node-group: ops
+      tolerations:
+        - key: "safespot.io/dedicated"
+          operator: "Equal"
+          value: "ops"
+          effect: "NoSchedule"
 
   prometheus:
     serviceAccount:
