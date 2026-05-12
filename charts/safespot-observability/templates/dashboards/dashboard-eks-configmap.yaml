@@ -132,5 +132,40 @@ data:
           "fieldConfig": { "defaults": { "unit": "bytes" } }
         }
       ]
-    }
+    },
+            {
+          "id": 8,
+          "title": "Node Disk I/O (bytes/sec)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 17, "w": 12, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum(rate(node_disk_read_bytes_total[5m]))", "legendFormat": "read bytes/sec" },
+            { "expr": "sum(rate(node_disk_written_bytes_total[5m]))", "legendFormat": "write bytes/sec" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "id": 9,
+          "title": "Pod HTTP Latency p95 / p99",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 21, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\", pod!=\"\", uri!=\"UNKNOWN\"}[5m])) by (le, pod))",
+              "legendFormat": "p95 {{ "{{pod}}" }}"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\", pod!=\"\", uri!=\"UNKNOWN\"}[5m])) by (le, pod))",
+              "legendFormat": "p99 {{ "{{pod}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 3
+            }
+          }
+        }
 {{- end }}
