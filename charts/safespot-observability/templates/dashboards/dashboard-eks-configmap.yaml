@@ -154,7 +154,7 @@ data:
             }
           }
         },
-         {
+        {
           "id": 10,
           "title": "Application Pods by Node",
           "type": "stat",
@@ -181,7 +181,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (node) (rate(container_cpu_usage_seconds_total{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\",pod!=\"\"}[5m]))",
+              "expr": "sum by (node) (sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\",pod!=\"\"}[5m])) * on (namespace, pod) group_left(node) kube_pod_info{namespace=\"{{ .Values.safespot.namespace.application }}\"})",
               "legendFormat": "{{ "{{node}}" }}"
             }
           ],
@@ -200,7 +200,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (node) (container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\",pod!=\"\"})",
+              "expr": "sum by (node) (sum by (namespace, pod) (container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\",pod!=\"\"}) * on (namespace, pod) group_left(node) kube_pod_info{namespace=\"{{ .Values.safespot.namespace.application }}\"})",
               "legendFormat": "{{ "{{node}}" }}"
             }
           ],
