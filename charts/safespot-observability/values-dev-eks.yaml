@@ -55,11 +55,11 @@ kube-prometheus-stack:
       retention: 7d
       resources:
         requests:
-          cpu: "2"
-          memory: 8Gi
+          cpu: "0.5"
+          memory: 2Gi
         limits:
-          cpu: "4"
-          memory: 16Gi
+          cpu: "1.5"
+          memory: 6Gi
       livenessProbe:
         httpGet:
           path: /-/healthy
