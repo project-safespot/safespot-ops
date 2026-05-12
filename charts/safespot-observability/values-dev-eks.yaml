@@ -239,7 +239,7 @@ redisExporterExternalServiceMonitor:
   enabled: false
 
 fluent-bit:
-  enabled: false
+  enabled: true
 
   serviceAccount:
     create: true
