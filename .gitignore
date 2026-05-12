@@ -13,3 +13,5 @@ charts/safespot-observability/values-*.infra.generated.yaml
 # Helm chart cache (다운로드된 subchart archive는 커밋 여부 선택)
 # 커밋하지 않으면 배포 전 helm dependency build 필요
 # charts/safespot-observability/charts/*.tgz
+
+ns.json
