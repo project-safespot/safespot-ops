@@ -168,6 +168,13 @@ echo "  OK  /${PROJECT}/${ENVIRONMENT}/async-worker/event-queue-url → ${EVENT_
 
 echo "[2/3] Reading optional SSM parameters ..."
 
+FLUENT_BIT_IRSA_ROLE_ARN="$(get_optional_parameter "/${PROJECT}/${ENVIRONMENT}/observability/fluent-bit/irsa-role-arn")"
+if [[ -z "$FLUENT_BIT_IRSA_ROLE_ARN" ]]; then
+  echo "  WARN /${PROJECT}/${ENVIRONMENT}/observability/fluent-bit/irsa-role-arn (not found — fluent-bit IRSA annotation will be TODO_GENERATED_VALUE)"
+else
+  echo "  OK   /${PROJECT}/${ENVIRONMENT}/observability/fluent-bit/irsa-role-arn"
+fi
+
 GRAFANA_IRSA_ROLE_ARN="$(get_optional_parameter "/${PROJECT}/${ENVIRONMENT}/observability/grafana/irsa-role-arn")"
 if [[ -z "$GRAFANA_IRSA_ROLE_ARN" ]]; then
   echo "  SKIP /${PROJECT}/${ENVIRONMENT}/observability/grafana/irsa-role-arn (not found — Grafana IRSA annotation will be omitted)"
@@ -528,6 +535,17 @@ LAMBDA
   fi
 
   echo ""
+
+  # fluent-bit IRSA annotation (optional — warn if missing)
+  if [[ -n "${FLUENT_BIT_IRSA_ROLE_ARN}" ]]; then
+    cat <<FLUENTBIT
+fluent-bit:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: "${FLUENT_BIT_IRSA_ROLE_ARN}"
+
+FLUENTBIT
+  fi
 
   # Grafana IRSA annotation (optional)
   # kube-prometheus-stack IRSA annotations (optional)

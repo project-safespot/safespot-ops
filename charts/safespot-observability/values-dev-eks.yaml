@@ -276,9 +276,10 @@ fluent-bit:
   serviceAccount:
     create: true
     name: safespot-fluent-bit
-    # IRSA annotation은 values-dev.infra.generated.yaml에서 주입됩니다.
-    # SSM: /safespot/dev/observability/fluent-bit/irsa-role-arn
-    annotations: 
+    annotations:
+      # values-dev.infra.generated.yaml이 실제 ARN으로 오버라이드합니다.
+      # SSM: /safespot/dev/observability/fluent-bit/irsa-role-arn
+      # Terraform trust policy subject: system:serviceaccount:monitoring:safespot-fluent-bit
       eks.amazonaws.com/role-arn: "TODO_GENERATED_VALUE"
   tolerations:
     - operator: Exists

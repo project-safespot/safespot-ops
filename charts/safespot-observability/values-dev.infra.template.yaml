@@ -14,6 +14,7 @@
 #     export ENVIRONMENT_CACHE_REFRESH_QUEUE_NAME=...
 #     export EVENT_QUEUE_NAME=...
 #   선택:
+#     export FLUENT_BIT_IRSA_ROLE_ARN=...
 #     export GRAFANA_IRSA_ROLE_ARN=...
 #     export RDS_CLUSTER_IDENTIFIER=...
 #     export REDIS_REPLICATION_GROUP_ID=...
@@ -41,6 +42,19 @@ yace:
       # 형식: arn:aws:iam::<account-id>:role/<role-name>
       # Terraform trust policy subject: system:serviceaccount:monitoring:safespot-yace
       eks.amazonaws.com/role-arn: "${YACE_IRSA_ROLE_ARN}"
+
+# ---------------------------------------------------------------------------
+# Optional: fluent-bit IRSA
+# FLUENT_BIT_IRSA_ROLE_ARN이 없으면 scripts/render-dev-values.sh가 이 섹션을 생략합니다.
+# ---------------------------------------------------------------------------
+
+fluent-bit:
+  serviceAccount:
+    annotations:
+      # SSM: /${PROJECT}/${ENVIRONMENT}/observability/fluent-bit/irsa-role-arn
+      # 형식: arn:aws:iam::<account-id>:role/<role-name>
+      # Terraform trust policy subject: system:serviceaccount:monitoring:safespot-fluent-bit
+      eks.amazonaws.com/role-arn: "${FLUENT_BIT_IRSA_ROLE_ARN}"
 
 # ---------------------------------------------------------------------------
 # Optional: Grafana IRSA
