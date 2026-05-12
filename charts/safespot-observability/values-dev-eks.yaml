@@ -43,14 +43,13 @@ kube-prometheus-stack:
         jsonData:
           authType: default
           defaultRegion: ap-northeast-2
-    grafanaSpec:
-      nodeSelector:
-        safespot.io/node-group: ops
-      tolerations:
-        - key: "safespot.io/dedicated"
-          operator: "Equal"
-          value: "ops"
-          effect: "NoSchedule"
+    nodeSelector:
+      safespot.io/node-group: ops
+    tolerations:
+      - key: "safespot.io/dedicated"
+        operator: "Equal"
+        value: "ops"
+        effect: "NoSchedule"
 
   prometheus:
     serviceAccount:
@@ -99,6 +98,24 @@ kube-prometheus-stack:
           operator: "Equal"
           value: "ops"
           effect: "NoSchedule"
+
+  prometheusOperator:
+    nodeSelector:
+      safespot.io/node-group: ops
+    tolerations:
+      - key: "safespot.io/dedicated"
+        operator: "Equal"
+        value: "ops"
+        effect: "NoSchedule"
+
+  kube-state-metrics:
+    nodeSelector:
+      safespot.io/node-group: ops
+    tolerations:
+      - key: "safespot.io/dedicated"
+        operator: "Equal"
+        value: "ops"
+        effect: "NoSchedule"
 
   alertmanager:
     service:
