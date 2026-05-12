@@ -53,6 +53,29 @@ kube-prometheus-stack:
       type: ClusterIP
     prometheusSpec:
       retention: 7d
+      resources:
+        requests:
+          cpu: "2"
+          memory: 8Gi
+        limits:
+          cpu: "4"
+          memory: 16Gi
+      livenessProbe:
+        httpGet:
+          path: /-/healthy
+          port: web
+        initialDelaySeconds: 180
+        periodSeconds: 30
+        timeoutSeconds: 10
+        failureThreshold: 10
+      readinessProbe:
+        httpGet:
+          path: /-/ready
+          port: web
+        initialDelaySeconds: 120
+        periodSeconds: 30
+        timeoutSeconds: 10
+        failureThreshold: 10
       storageSpec:
         volumeClaimTemplate:
           spec:
