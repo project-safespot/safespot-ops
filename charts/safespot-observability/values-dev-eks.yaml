@@ -45,6 +45,11 @@ kube-prometheus-stack:
           defaultRegion: ap-northeast-2
     nodeSelector:
       safespot.io/node-group: ops
+    tolerations:
+      - key: "safespot.io/dedicated"
+        operator: "Equal"
+        value: "ops"
+        effect: "NoSchedule"
 
   prometheus:
     serviceAccount:
@@ -88,6 +93,11 @@ kube-prometheus-stack:
                 storage: 20Gi
       nodeSelector:
         safespot.io/node-group: ops
+      tolerations:
+        - key: "safespot.io/dedicated"
+          operator: "Equal"
+          value: "ops"
+          effect: "NoSchedule"
 
   alertmanager:
     service:
@@ -105,6 +115,11 @@ kube-prometheus-stack:
                 storage: 5Gi
       nodeSelector:
         safespot.io/node-group: ops
+      tolerations:
+        - key: "safespot.io/dedicated"
+          operator: "Equal"
+          value: "ops"
+          effect: "NoSchedule"
     config:
       route:
         receiver: slack
@@ -222,6 +237,11 @@ prometheus-adapter:
 
   nodeSelector:
     safespot.io/node-group: ops
+  tolerations:
+    - key: "safespot.io/dedicated"
+      operator: "Equal"
+      value: "ops"
+      effect: "NoSchedule"
 
   rules:
     default: false
@@ -267,6 +287,11 @@ redis-exporter:
       memory: 128Mi
   nodeSelector:
     safespot.io/node-group: ops
+  tolerations:
+    - key: "safespot.io/dedicated"
+      operator: "Equal"
+      value: "ops"
+      effect: "NoSchedule"
 
 # subchart ServiceMonitor 사용 — 수동 SM 비활성 유지
 redisExporterExternalServiceMonitor:
@@ -346,6 +371,11 @@ yace:
       memory: 256Mi
   nodeSelector:
     safespot.io/node-group: ops
+  tolerations:
+    - key: "safespot.io/dedicated"
+      operator: "Equal"
+      value: "ops"
+      effect: "NoSchedule"
   testConnection: false
   config: |-
     apiVersion: v1alpha1
