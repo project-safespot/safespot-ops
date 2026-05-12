@@ -153,7 +153,67 @@ data:
               "decimals": 3
             }
           }
+        },
+         {
+          "id": 10,
+          "title": "Application Pods by Node",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 27, "w": 8, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "count by (node) (kube_pod_info{namespace=\"{{ .Values.safespot.namespace.application }}\"})",
+              "legendFormat": "{{ "{{node}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0
+            }
+          }
+        },
+        {
+          "id": 11,
+          "title": "Application Pod CPU by Node",
+          "type": "timeseries",
+          "gridPos": { "x": 8, "y": 27, "w": 8, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (node) (rate(container_cpu_usage_seconds_total{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\",pod!=\"\"}[5m]))",
+              "legendFormat": "{{ "{{node}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cores",
+              "decimals": 3
+            }
+          }
+        },
+        {
+          "id": 12,
+          "title": "Application Pod Memory by Node",
+          "type": "timeseries",
+          "gridPos": { "x": 16, "y": 27, "w": 8, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (node) (container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\",pod!=\"\"})",
+              "legendFormat": "{{ "{{node}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "decimals": 2
+            }
+          }
         }
+      ]
+    }
+{{- end }}
       ]
     }
 {{- end }}
