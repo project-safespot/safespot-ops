@@ -79,6 +79,10 @@ safespot:
       enabled: false
     apiCustom:
       enabled: false
+    appOverview:
+      enabled: false
+    jvmGc:
+      enabled: false
     worker:
       enabled: false
     ingestion:

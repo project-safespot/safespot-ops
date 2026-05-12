@@ -1,0 +1,233 @@
+{{- if .Values.safespot.dashboards.jvmGc.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-jvm-gc
+  namespace: {{ .Values.safespot.namespace.monitoring }}
+  labels:
+    grafana_dashboard: "1"
+    env: {{ .Values.safespot.env }}
+    region: {{ .Values.safespot.region }}
+data:
+  jvm-gc.json: |
+    {
+      "uid": "safespot-jvm-gc",
+      "title": "SafeSpot — JVM GC",
+      "tags": ["safespot", "jvm", "gc"],
+      "timezone": "Asia/Seoul",
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Heap Usage",
+          "type": "row",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "panels": []
+        },
+        {
+          "id": 2,
+          "title": "Heap Total Usage % (Warning >80%, Critical >90%)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Warning: >80% for 5m | Critical: >90% for 5m",
+          "targets": [
+            {
+              "expr": "sum by (service, pod) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",area=\"heap\"}) / sum by (service, pod) (jvm_memory_max_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",area=\"heap\"})",
+              "legendFormat": "{{ "{{service}}" }} / {{ "{{pod}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1,
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.8 }, { "color": "red", "value": 0.9 }] }
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "Heap by Pool: Eden / Survivor / Old (Warning >80%, Critical >90%)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+          "datasource": { "uid": "prometheus" },
+          "description": "G1 Eden: 단기 객체 | G1 Survivor: Young GC 생존 | G1 Old Gen: 장기 생존 | Humongous: 대용량 객체",
+          "targets": [
+            {
+              "expr": "sum by (service, pod, id) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",area=\"heap\"}) / sum by (service, pod, id) (jvm_memory_max_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",area=\"heap\"})",
+              "legendFormat": "{{ "{{service}}" }} / {{ "{{pod}}" }} / {{ "{{id}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1,
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.8 }, { "color": "red", "value": 0.9 }] }
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "Old Gen Usage % (Warning >70%, Critical >85%)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Warning: >70% for 5m | Critical: >85% for 5m — Old Gen 누적은 Full GC 전조",
+          "targets": [
+            {
+              "expr": "sum by (service, pod) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",area=\"heap\",id=~\".*[Oo]ld.*\"}) / sum by (service, pod) (jvm_memory_max_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",area=\"heap\",id=~\".*[Oo]ld.*\"})",
+              "legendFormat": "{{ "{{service}}" }} / {{ "{{pod}}" }} Old Gen"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1,
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.7 }, { "color": "red", "value": 0.85 }] }
+            }
+          }
+        },
+        {
+          "id": 5,
+          "title": "Non-Heap Usage by Area (Metaspace / CodeCache 등)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (service, pod, id) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",area=\"nonheap\"})",
+              "legendFormat": "{{ "{{service}}" }} / {{ "{{pod}}" }} / {{ "{{id}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "id": 6,
+          "title": "GC",
+          "type": "row",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+          "panels": []
+        },
+        {
+          "id": 7,
+          "title": "GC Pause Time Ratio (Warning >5%, Critical >10%)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "datasource": { "uid": "prometheus" },
+          "description": "초당 GC에 소비되는 시간 비율. 0.05=5%(warning), 0.10=10%(critical)",
+          "targets": [
+            {
+              "expr": "sum by (service, pod) (rate(jvm_gc_pause_seconds_sum{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\"}[1m]))",
+              "legendFormat": "{{ "{{service}}" }} / {{ "{{pod}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.05 }, { "color": "red", "value": 0.1 }] }
+            }
+          }
+        },
+        {
+          "id": 8,
+          "title": "GC Pause Count by Cause",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (service, pod, action, cause) (rate(jvm_gc_pause_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\"}[1m]))",
+              "legendFormat": "{{ "{{service}}" }} / {{ "{{pod}}" }} {{ "{{action}}" }} ({{ "{{cause}}" }})"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+        {
+          "id": 9,
+          "title": "Average GC Pause (Warning >200ms, Critical >1s)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Warning: >200ms | Critical: >1s",
+          "targets": [
+            {
+              "expr": "sum by (service, pod) (rate(jvm_gc_pause_seconds_sum{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\"}[5m])) / sum by (service, pod) (rate(jvm_gc_pause_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\"}[5m]))",
+              "legendFormat": "{{ "{{service}}" }} / {{ "{{pod}}" }} avg pause"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 3,
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.2 }, { "color": "red", "value": 1.0 }] }
+            }
+          }
+        },
+        {
+          "id": 10,
+          "title": "Max GC Pause",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 26 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "max by (service, pod, action, cause) (jvm_gc_pause_seconds_max{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\"})",
+              "legendFormat": "{{ "{{service}}" }} / {{ "{{pod}}" }} {{ "{{action}}" }} ({{ "{{cause}}" }})"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 } }
+        },
+        {
+          "id": 11,
+          "title": "Allocation Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 26 },
+          "datasource": { "uid": "prometheus" },
+          "description": "jvm_gc_memory_allocated_bytes_total — metric 없으면 No data (application 노출 필요)",
+          "targets": [
+            {
+              "expr": "sum by (service, pod) (rate(jvm_gc_memory_allocated_bytes_total{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\"}[1m]))",
+              "legendFormat": "{{ "{{service}}" }} / {{ "{{pod}}" }} alloc rate"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "Bps" } }
+        },
+        {
+          "id": 12,
+          "title": "Promoted Bytes Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 26 },
+          "datasource": { "uid": "prometheus" },
+          "description": "jvm_gc_memory_promoted_bytes_total — metric 없으면 No data (application 노출 필요)",
+          "targets": [
+            {
+              "expr": "sum by (service, pod) (rate(jvm_gc_memory_promoted_bytes_total{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\"}[1m]))",
+              "legendFormat": "{{ "{{service}}" }} / {{ "{{pod}}" }} promoted rate"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "Bps" } }
+        },
+        {
+          "id": 13,
+          "title": "Live Data Size (Old Gen after Full GC)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 26 },
+          "datasource": { "uid": "prometheus" },
+          "description": "jvm_gc_live_data_size_bytes — metric 없으면 No data (application 노출 필요)",
+          "targets": [
+            {
+              "expr": "max by (service, pod) (jvm_gc_live_data_size_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\"})",
+              "legendFormat": "{{ "{{service}}" }} / {{ "{{pod}}" }} live data"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        }
+      ]
+    }
+{{- end }}

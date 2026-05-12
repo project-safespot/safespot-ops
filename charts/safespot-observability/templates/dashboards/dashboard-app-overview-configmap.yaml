@@ -1,0 +1,168 @@
+{{- if .Values.safespot.dashboards.appOverview.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-app-overview
+  namespace: {{ .Values.safespot.namespace.monitoring }}
+  labels:
+    grafana_dashboard: "1"
+    env: {{ .Values.safespot.env }}
+    region: {{ .Values.safespot.region }}
+data:
+  app-overview.json: |
+    {
+      "uid": "safespot-app-overview",
+      "title": "SafeSpot — Application Overview",
+      "tags": ["safespot", "api", "overview"],
+      "timezone": "Asia/Seoul",
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "title": "HTTP Metrics",
+          "type": "row",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "panels": []
+        },
+        {
+          "id": 2,
+          "title": "TPS by Service (actuator 제외)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (service) (rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",uri!~\"/actuator.*|UNKNOWN\"}[1m]))",
+              "legendFormat": "{{ "{{service}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 3,
+          "title": "TPS by URI (actuator 제외)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (service, uri) (rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",uri!~\"/actuator.*|UNKNOWN\"}[1m]))",
+              "legendFormat": "{{ "{{service}}" }} {{ "{{uri}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 4,
+          "title": "p95 Latency by URI (actuator 제외)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, service, uri) (rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",uri!~\"/actuator.*|UNKNOWN\"}[5m])))",
+              "legendFormat": "p95 {{ "{{service}}" }} {{ "{{uri}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 } }
+        },
+        {
+          "id": 5,
+          "title": "p99 Latency by URI (actuator 제외)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum by (le, service, uri) (rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",uri!~\"/actuator.*|UNKNOWN\"}[5m])))",
+              "legendFormat": "p99 {{ "{{service}}" }} {{ "{{uri}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 } }
+        },
+        {
+          "id": 6,
+          "title": "4xx Error Rate by Service",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Warning: >1% sustained 5m",
+          "targets": [
+            {
+              "expr": "sum by (service) (rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",status=~\"4..\",uri!~\"/actuator.*|UNKNOWN\"}[5m])) / sum by (service) (rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",uri!~\"/actuator.*|UNKNOWN\"}[5m]))",
+              "legendFormat": "4xx {{ "{{service}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.01 }] }
+            }
+          }
+        },
+        {
+          "id": 7,
+          "title": "5xx Error Rate by Service",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Warning: >1% sustained 5m",
+          "targets": [
+            {
+              "expr": "sum by (service) (rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",status=~\"5..\",uri!~\"/actuator.*|UNKNOWN\"}[5m])) / sum by (service) (rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"{{ .Values.safespot.api.servicesFilter }}\",uri!~\"/actuator.*|UNKNOWN\"}[5m]))",
+              "legendFormat": "5xx {{ "{{service}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.01 }] }
+            }
+          }
+        },
+        {
+          "id": 8,
+          "title": "Pod Health",
+          "type": "row",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+          "panels": []
+        },
+        {
+          "id": 9,
+          "title": "Pod Restart Count (최근 1h)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Critical: any restart > 0",
+          "targets": [
+            {
+              "expr": "sum by (pod, container) (increase(kube_pod_container_status_restarts_total{namespace=\"{{ .Values.safespot.namespace.application }}\",container=~\"api-core|api-public-read\"}[1h]))",
+              "legendFormat": "{{ "{{pod}}" }} / {{ "{{container}}" }}"
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "title": "OOMKilled",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Critical: >0 — container killed due to memory limit",
+          "targets": [
+            {
+              "expr": "max by (pod, container) (kube_pod_container_status_last_terminated_reason{namespace=\"{{ .Values.safespot.namespace.application }}\",container=~\"api-core|api-public-read\",reason=\"OOMKilled\"})",
+              "legendFormat": "{{ "{{pod}}" }} / {{ "{{container}}" }}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+            }
+          }
+        }
+      ]
+    }
+{{- end }}

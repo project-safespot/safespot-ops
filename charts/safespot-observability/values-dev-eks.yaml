@@ -258,6 +258,10 @@ safespot:
       enabled: true
     apiCustom:
       enabled: true
+    appOverview:
+      enabled: true
+    jvmGc:
+      enabled: true
     loadtest:
       enabled: true
 
