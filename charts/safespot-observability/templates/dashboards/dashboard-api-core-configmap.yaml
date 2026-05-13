@@ -401,7 +401,7 @@ data:
         },
         {
           "id": 40,
-          "title": "Thread / Tomcat",
+          "title": "JVM Threads / Optional Tomcat Debug",
           "type": "row",
           "collapsed": false,
           "gridPos": { "h": 1, "w": 24, "x": 0, "y": 68 },
@@ -437,10 +437,11 @@ data:
         },
         {
           "id": 43,
-          "title": "Tomcat Busy Threads",
+          "title": "Optional Debug - Tomcat Busy Threads",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 6, "x": 12, "y": 69 },
           "datasource": { "uid": "prometheus" },
+          "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. Treat No data as application metric not exposed, not a scrape failure.",
           "targets": [
             {
               "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"})",
@@ -451,10 +452,11 @@ data:
         },
         {
           "id": 44,
-          "title": "Tomcat Busy Ratio",
+          "title": "Optional Debug - Tomcat Busy Ratio",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 6, "x": 18, "y": 69 },
           "datasource": { "uid": "prometheus" },
+          "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. Treat No data as application metric not exposed, not a scrape failure.",
           "targets": [
             {
               "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"}) / sum by (pod) (tomcat_threads_config_max_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"})",
@@ -471,10 +473,11 @@ data:
         },
         {
           "id": 46,
-          "title": "Tomcat Current Threads",
+          "title": "Optional Debug - Tomcat Current Threads",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 6, "x": 0, "y": 77 },
           "datasource": { "uid": "prometheus" },
+          "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. Treat No data as application metric not exposed, not a scrape failure.",
           "targets": [
             {
               "expr": "sum by (pod) (tomcat_threads_current_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"})",
@@ -485,10 +488,11 @@ data:
         },
         {
           "id": 45,
-          "title": "Tomcat Max Threads",
+          "title": "Optional Debug - Tomcat Max Threads",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 6, "x": 6, "y": 77 },
           "datasource": { "uid": "prometheus" },
+          "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. Treat No data as application metric not exposed, not a scrape failure.",
           "targets": [
             {
               "expr": "sum by (pod) (tomcat_threads_config_max_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"})",
