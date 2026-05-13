@@ -50,14 +50,117 @@ kube-prometheus-stack:
         operator: "Equal"
         value: "ops"
         effect: "NoSchedule"
-    imageRenderer:
-      nodeSelector:
-        safespot.io/node-group: ops
-      tolerations:
-        - key: "safespot.io/dedicated"
-          operator: "Equal"
-          value: "ops"
-          effect: "NoSchedule"
+    # renderer Deployment/Service는 extraObjects로 직접 정의.
+    # chart built-in imageRenderer는 비활성화 (values.yaml imageRenderer.enabled: false).
+    # 이유: chart liveness probe httpGet 고정 → tcpSocket override 불가.
+    # GF_RENDERING_* env는 imageRenderer.enabled: false 시 chart이 주입하지 않으므로 수동 설정.
+    envValueFrom:
+      GF_RENDERING_RENDERER_TOKEN:
+        secretKeyRef:
+          name: grafana-image-renderer-token
+          key: token
+    env:
+      GF_RENDERING_SERVER_URL: "http://safespot-observability-dev-grafana-image-renderer.monitoring:8081/render"
+      GF_RENDERING_CALLBACK_URL: "http://safespot-observability-dev-grafana.monitoring:80/"
+    extraObjects:
+      - apiVersion: v1
+        kind: Secret
+        metadata:
+          name: grafana-image-renderer-token
+          namespace: monitoring
+        type: Opaque
+        stringData:
+          # TODO(운영): ExternalSecret(SSM /safespot/<env>/observability/grafana/renderer-token)으로 교체
+          token: "safespot-dev-renderer-token-2025"
+      - apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: safespot-observability-dev-grafana-image-renderer
+          namespace: monitoring
+          labels:
+            app.kubernetes.io/name: grafana-image-renderer
+            app.kubernetes.io/instance: safespot-observability-dev
+            app.kubernetes.io/component: image-renderer
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app.kubernetes.io/name: grafana-image-renderer
+              app.kubernetes.io/instance: safespot-observability-dev
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/name: grafana-image-renderer
+                app.kubernetes.io/instance: safespot-observability-dev
+            spec:
+              containers:
+                - name: grafana-image-renderer
+                  image: grafana/grafana-image-renderer:3.11.6
+                  imagePullPolicy: IfNotPresent
+                  ports:
+                    - name: http
+                      containerPort: 8081
+                      protocol: TCP
+                  env:
+                    - name: HTTP_PORT
+                      value: "8081"
+                    - name: AUTH_TOKEN
+                      valueFrom:
+                        secretKeyRef:
+                          name: grafana-image-renderer-token
+                          key: token
+                  livenessProbe:
+                    tcpSocket:
+                      port: 8081
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 6
+                  readinessProbe:
+                    tcpSocket:
+                      port: 8081
+                    initialDelaySeconds: 10
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 6
+                  resources:
+                    requests:
+                      cpu: 250m
+                      memory: 512Mi
+                    limits:
+                      cpu: 1000m
+                      memory: 1Gi
+                  volumeMounts:
+                    - mountPath: /tmp
+                      name: image-renderer-tmpfs
+              nodeSelector:
+                safespot.io/node-group: ops
+              tolerations:
+                - key: "safespot.io/dedicated"
+                  operator: "Equal"
+                  value: "ops"
+                  effect: "NoSchedule"
+              volumes:
+                - name: image-renderer-tmpfs
+                  emptyDir: {}
+      - apiVersion: v1
+        kind: Service
+        metadata:
+          name: safespot-observability-dev-grafana-image-renderer
+          namespace: monitoring
+          labels:
+            app.kubernetes.io/name: grafana-image-renderer
+            app.kubernetes.io/instance: safespot-observability-dev
+        spec:
+          type: ClusterIP
+          ports:
+            - name: http
+              port: 8081
+              targetPort: 8081
+              protocol: TCP
+          selector:
+            app.kubernetes.io/name: grafana-image-renderer
+            app.kubernetes.io/instance: safespot-observability-dev
 
   prometheus:
     serviceAccount:

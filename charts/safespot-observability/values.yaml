@@ -5,53 +5,19 @@ kube-prometheus-stack:
   grafana:
     service:
       type: ClusterIP
-    # GF_RENDERING_SERVER_URL / GF_RENDERING_CALLBACK_URL는
-    # imageRenderer.enabled: true 시 chart이 자동 생성합니다.
-    # 수동 env 설정 불필요 — 서비스명이 release name에 따라 달라지므로 chart 자동값을 사용합니다.
     sidecar:
       dashboards:
         enabled: true
         label: grafana_dashboard
         labelValue: "1"
         searchNamespace: ALL
-    # image-renderer AUTH_TOKEN 비활성화를 위한 빈 토큰 Secret을 extraObjects로 주입합니다.
-    # existingSecret 설정 시 chart 자동 생성 Secret(랜덤 토큰)은 생성되지 않습니다.
-    # AUTH_TOKEN="" → renderer auth 비활성 → liveness probe httpGet /render/version → 200 OK
-    extraObjects:
-      - apiVersion: v1
-        kind: Secret
-        metadata:
-          name: grafana-image-renderer-no-auth
-          namespace: monitoring
-        type: Opaque
-        stringData:
-          token: ""
     imageRenderer:
-      enabled: true
-      replicas: 1
-      image:
-        repository: grafana/grafana-image-renderer
-        # v3.6.0+ 에서 /render/version 엔드포인트 지원
-        # v3.0.1은 /healthz (chart 기본값)를 지원하지 않아 liveness probe 404 발생
-        tag: "3.11.6"
-      # healthcheckPath: chart가 liveness probe httpGet.path에 사용하는 단일 설정값
-      # v3.0.1 이하: "/" 사용 / v3.6.0+: "/render/version" 사용 / v5.0.0+: "/healthz" 사용
-      healthcheckPath: /render/version
-      # existingSecret: 빈 토큰 Secret 지정 → AUTH_TOKEN="" → renderer auth 비활성
-      # chart 자동 Secret(랜덤 토큰) 생성 억제
-      existingSecret: "grafana-image-renderer-no-auth"
-      service:
-        enabled: true
-        portName: http
-        port: 8081
-        targetPort: 8081
-      resources:
-        requests:
-          cpu: 250m
-          memory: 512Mi
-        limits:
-          cpu: 1000m
-          memory: 1Gi
+      # chart 내장 imageRenderer 비활성화.
+      # liveness probe가 httpGet 고정(tcpSocket으로 override 불가)이고,
+      # Grafana 13.0.1은 production mode에서 empty renderer_token을 거부한다.
+      # AUTH_TOKEN을 활성화하면 kubelet probe가 401 → pod restart loop.
+      # 해결: values-dev-eks.yaml extraObjects로 renderer Deployment/Service를 직접 정의.
+      enabled: false
   prometheus:
     service:
       type: ClusterIP
