@@ -500,44 +500,40 @@ data:
         },
         {
           "id": 23,
-          "title": "Tail Spike - Tomcat Threads",
+          "title": "Tail Spike - JVM Threads",
           "type": "timeseries",
           "gridPos": { "x": 0, "y": 68, "w": 12, "h": 6 },
           "datasource": { "uid": "prometheus" },
-          "description": "Use {__name__=~\"tomcat_threads_.*\", namespace=\"application\"} if a panel shows No data.",
+          "description": "Default thread signal for api-public-read because tomcat_threads_* is not currently exposed by api-public-read actuator.",
           "targets": [
             {
-              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
-              "legendFormat": "busy {{`{{pod}}`}}",
+              "expr": "jvm_threads_live_threads{namespace=\"application\",service=~\"api-public-read|api-core\"}",
+              "legendFormat": "live {{`{{pod}}`}}",
               "refId": "A"
             },
             {
-              "expr": "sum by (pod) (tomcat_threads_current_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
-              "legendFormat": "current {{`{{pod}}`}}",
+              "expr": "jvm_threads_peak_threads{namespace=\"application\",service=~\"api-public-read|api-core\"}",
+              "legendFormat": "peak {{`{{pod}}`}}",
               "refId": "B"
-            },
-            {
-              "expr": "sum by (pod) (tomcat_threads_config_max_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
-              "legendFormat": "max {{`{{pod}}`}}",
-              "refId": "C"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "short" } }
         },
         {
           "id": 24,
-          "title": "Tail Spike - Tomcat Busy Ratio",
+          "title": "Tail Spike - CPU Usage / Request Ratio",
           "type": "timeseries",
           "gridPos": { "x": 12, "y": 68, "w": 12, "h": 6 },
           "datasource": { "uid": "prometheus" },
+          "description": "CPU pressure signal to compare with p99 spikes before checking throttling.",
           "targets": [
             {
-              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"application\",service=~\"api-public-read|api-core\"}) / sum by (pod) (tomcat_threads_config_max_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
-              "legendFormat": "{{`{{pod}}`}} busy ratio",
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"application\",pod=~\"api-core.*|api-public-read.*|api-public-read-surge.*\",container!=\"\",image!=\"\"}[1m])) / sum by (pod) (kube_pod_container_resource_requests{namespace=\"application\",pod=~\"api-core.*|api-public-read.*|api-public-read-surge.*\",resource=\"cpu\"})",
+              "legendFormat": "{{`{{pod}}`}} cpu/request",
               "refId": "A"
             }
           ],
-          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0 } }
         },
         {
           "id": 25,
@@ -623,10 +619,52 @@ data:
           "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
         },
         {
+          "id": 29,
+          "title": "Optional Debug - Tomcat Threads",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 86, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. No data is expected unless the application starts exposing these metrics. Discovery: {__name__=~\"tomcat_threads_.*\", namespace=\"application\"}",
+          "targets": [
+            {
+              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "busy {{`{{pod}}`}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (pod) (tomcat_threads_current_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "current {{`{{pod}}`}}",
+              "refId": "B"
+            },
+            {
+              "expr": "sum by (pod) (tomcat_threads_config_max_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "max {{`{{pod}}`}}",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        },
+        {
+          "id": 30,
+          "title": "Optional Debug - Tomcat Busy Ratio",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 86, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. No data is expected unless the application starts exposing these metrics.",
+          "targets": [
+            {
+              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"application\",service=~\"api-public-read|api-core\"}) / sum by (pod) (tomcat_threads_config_max_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "{{`{{pod}}`}} busy ratio",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+        },
+        {
           "id": 104,
           "title": "── Result Guide ──",
           "type": "text",
-          "gridPos": { "x": 0, "y": 86, "w": 24, "h": 4 },
+          "gridPos": { "x": 0, "y": 92, "w": 24, "h": 4 },
           "options": {
             "mode": "markdown",
             "content": "## 판단 기준\n\n### Smoke\n- 에러율 0%\n- 핵심 API 정상 응답\n\n### TPS 1,000\n- 에러율 1% 이하\n- p95 latency 목표치 유지\n- Pod CPU/Memory, Redis, RDS 안정\n\n### Stress TPS 5,000\n- 먼저 한계에 도달하는 자원 확인\n- RDS CPU/Connections/Latency 급등 여부\n- Redis eviction/rejected connection 발생 여부\n- HPA desired replica 증가 및 max 도달 여부\n- Pod restart 발생 여부"
