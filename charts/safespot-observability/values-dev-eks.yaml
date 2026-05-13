@@ -169,7 +169,7 @@ safespot:
     podTroubleFinder: 
       enabled: true
     redisDbFallback:
-      enable: true
+      enabled: true
 
   prometheusRules:
     redis:
