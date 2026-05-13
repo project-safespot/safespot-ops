@@ -47,6 +47,56 @@ data:
       "annotations": { "list": [] },
       "panels": [
         {
+          "id": 1,
+          "type": "row",
+          "title": "Service / API Drilldown",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "panels": []
+        },
+        {
+          "id": 2,
+          "title": "RPS by URI",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+          "targets": [
+            {
+              "expr": "sum by (uri, method, status) (rate(http_server_requests_seconds_count{namespace=\"application\",service=\"$service\",uri=~\"$uri\"}[1m]))",
+              "legendFormat": "{{method}} {{uri}} {{status}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 3,
+          "title": "Latency p50 / p95 / p99 by URI",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum by (uri, le) (rate(http_server_requests_seconds_bucket{namespace=\"application\",service=\"$service\",uri=~\"$uri\"}[5m])))",
+              "legendFormat": "{{uri}} p50",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (uri, le) (rate(http_server_requests_seconds_bucket{namespace=\"application\",service=\"$service\",uri=~\"$uri\"}[5m])))",
+              "legendFormat": "{{uri}} p95",
+              "refId": "B"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_seconds_bucket{namespace=\"application\",service=\"$service\",uri=~\"$uri\"}[5m])))",
+              "legendFormat": "{{uri}} p99",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
           "id": 4,
           "title": "Error RPS by URI",
           "type": "timeseries",
