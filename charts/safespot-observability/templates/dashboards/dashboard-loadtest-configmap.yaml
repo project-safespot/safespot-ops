@@ -661,13 +661,145 @@ data:
           "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
         },
         {
+          "id": 105,
+          "title": "── ALB → Application TPS 비교 (부하 경로 분석) ──",
+          "type": "text",
+          "gridPos": { "x": 0, "y": 92, "w": 24, "h": 2 },
+          "options": {
+            "mode": "markdown",
+            "content": "### 부하발생기 → ALB → Application TPS 비교\n- **ALB Request TPS**: CloudWatch `RequestCount` (YACE 수집) — ALB까지 실제 도달한 요청\n- **App TPS**: `http_server_requests_seconds_count` (Prometheus scrape) — application이 처리한 요청\n- 두 값의 차이가 크면 ALB → Application 구간에서 drop이 발생한 것\n- Explore: `{__name__=~\"aws_applicationelb_.*\"}`"
+          }
+        },
+        {
+          "id": 31,
+          "title": "ALB TPS vs Application TPS (부하 경로 갭 분석)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 94, "w": 24, "h": 7 },
+          "datasource": { "uid": "prometheus" },
+          "description": "ALB가 수신한 TPS와 application이 처리한 TPS를 오버레이. 두 선의 괴리가 ALB→Application 구간 drop을 나타냄.",
+          "targets": [
+            {
+              "expr": "rate(aws_applicationelb_request_count_sum[1m])",
+              "legendFormat": "ALB Request TPS",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{service=~\"$service\"}[1m]))",
+              "legendFormat": "App TPS ({{`{{service}}`}})",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "reqps" },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "ALB Request TPS" },
+                "properties": [{ "id": "custom.lineWidth", "value": 2 }]
+              }
+            ]
+          }
+        },
+        {
+          "id": 32,
+          "title": "ALB TargetResponseTime (avg / max)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 101, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "description": "ALB → Target 응답 시간. p95/avg 괴리가 크면 일부 요청에서 심각한 지연 발생.",
+          "targets": [
+            {
+              "expr": "aws_applicationelb_target_response_time_average",
+              "legendFormat": "avg",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_applicationelb_target_response_time_maximum",
+              "legendFormat": "max",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 33,
+          "title": "ALB ELB 4xx/5xx + Target 4xx/5xx",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 101, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "description": "ELB 레벨: ALB 자체 오류 / Target 레벨: 백엔드 오류. Target 5xx 급증 시 application 장애.",
+          "targets": [
+            {
+              "expr": "rate(aws_applicationelb_httpcode_elb_4xx_count_sum[1m])",
+              "legendFormat": "ELB 4xx/s",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(aws_applicationelb_httpcode_elb_5xx_count_sum[1m])",
+              "legendFormat": "ELB 5xx/s",
+              "refId": "B"
+            },
+            {
+              "expr": "rate(aws_applicationelb_httpcode_target_4xx_count_sum[1m])",
+              "legendFormat": "Target 4xx/s",
+              "refId": "C"
+            },
+            {
+              "expr": "rate(aws_applicationelb_httpcode_target_5xx_count_sum[1m])",
+              "legendFormat": "Target 5xx/s",
+              "refId": "D"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 34,
+          "title": "ALB RejectedConnection / TargetConnectionError",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 107, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "description": "RejectedConnection: ALB 수용 한계 초과 / TargetConnectionError: Target 연결 불가. 둘 다 0이어야 정상.",
+          "targets": [
+            {
+              "expr": "rate(aws_applicationelb_rejected_connection_count_sum[1m])",
+              "legendFormat": "Rejected connections/s",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(aws_applicationelb_target_connection_error_count_sum[1m])",
+              "legendFormat": "Target connection errors/s",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 35,
+          "title": "ALB Active / New Connections",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 107, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "description": "동시 활성 TCP 연결 수. Keep-alive 사용 시 New << Active. 급격한 증가는 연결 폭증 신호.",
+          "targets": [
+            {
+              "expr": "aws_applicationelb_active_connection_count_sum",
+              "legendFormat": "Active connections",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_applicationelb_new_connection_count_sum",
+              "legendFormat": "New connections/min",
+              "refId": "B"
+            }
+          ]
+        },
+        {
           "id": 104,
           "title": "── Result Guide ──",
           "type": "text",
-          "gridPos": { "x": 0, "y": 92, "w": 24, "h": 4 },
+          "gridPos": { "x": 0, "y": 113, "w": 24, "h": 4 },
           "options": {
             "mode": "markdown",
-            "content": "## 판단 기준\n\n### Smoke\n- 에러율 0%\n- 핵심 API 정상 응답\n\n### TPS 1,000\n- 에러율 1% 이하\n- p95 latency 목표치 유지\n- Pod CPU/Memory, Redis, RDS 안정\n\n### Stress TPS 5,000\n- 먼저 한계에 도달하는 자원 확인\n- RDS CPU/Connections/Latency 급등 여부\n- Redis eviction/rejected connection 발생 여부\n- HPA desired replica 증가 및 max 도달 여부\n- Pod restart 발생 여부"
+            "content": "## 판단 기준\n\n### Smoke\n- 에러율 0%\n- 핵심 API 정상 응답\n\n### TPS 1,000\n- 에러율 1% 이하\n- p95 latency 목표치 유지\n- Pod CPU/Memory, Redis, RDS 안정\n\n### Stress TPS 5,000\n- 먼저 한계에 도달하는 자원 확인\n- RDS CPU/Connections/Latency 급등 여부\n- Redis eviction/rejected connection 발생 여부\n- HPA desired replica 증가 및 max 도달 여부\n- Pod restart 발생 여부\n\n### ALB → Application TPS 갭 분석\n- ALB TPS ≈ App TPS: 정상 (ALB 구간 drop 없음)\n- ALB TPS > App TPS: ALB → Application 구간에서 요청 소실. RejectedConnection/TargetConnectionError 확인\n- ALB 5xx / Target 5xx 급증: application 장애 또는 연결 한계 초과\n- ALB TargetResponseTime max 급등: 특정 요청에서 심각한 tail latency 발생"
           }
         }
       ]

@@ -255,18 +255,145 @@ data:
           "fieldConfig": { "defaults": { "unit": "ops" } }
         },
         {
+          "id": 24,
+          "title": "Fallback Single-Flight",
+          "type": "row",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 50 },
+          "description": "Leader는 실제 DB fallback을 수행한 요청입니다. Join은 동일 key에 대해 leader 결과를 기다린 follower 요청입니다. Suppressed는 single-flight join으로 DB fallback이 억제된 요청입니다. Suppression Ratio는 join / (leader + join)입니다. single-flight는 DB fallback 폭주를 줄이지만 cold miss latency 자체를 제거하지는 않습니다. stale serve는 아직 별도 후속 과제입니다.",
+          "panels": []
+        },
+        {
+          "id": 90,
+          "title": "Single-flight Leader Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 51 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Leader는 실제 DB fallback을 수행한 요청입니다.",
+          "targets": [
+            {
+              "expr": "sum by (cache, repository) (rate(fallback_singleflight_leader_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "{{ "{{cache}}" }} / {{ "{{repository}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+        {
+          "id": 91,
+          "title": "Single-flight Join Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 51 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Join은 동일 key에 대해 leader 결과를 기다린 follower 요청입니다.",
+          "targets": [
+            {
+              "expr": "sum by (cache, repository) (rate(fallback_singleflight_join_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "{{ "{{cache}}" }} / {{ "{{repository}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+        {
+          "id": 92,
+          "title": "Fallback Suppressed Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 51 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Suppressed는 single-flight join으로 DB fallback이 억제된 요청입니다.",
+          "targets": [
+            {
+              "expr": "sum by (cache, repository) (rate(fallback_suppressed_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "{{ "{{cache}}" }} / {{ "{{repository}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+        {
+          "id": 93,
+          "title": "Single-flight Suppression Ratio",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 59 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Suppression Ratio = join / (leader + join). single-flight는 DB fallback 폭주를 줄이지만 cold miss latency 자체를 제거하지는 않습니다.",
+          "targets": [
+            {
+              "expr": "sum by (cache, repository) (rate(fallback_singleflight_join_total{service=\"api-public-read\"}[1m])) / (sum by (cache, repository) (rate(fallback_singleflight_join_total{service=\"api-public-read\"}[1m])) + sum by (cache, repository) (rate(fallback_singleflight_leader_total{service=\"api-public-read\"}[1m])))",
+              "legendFormat": "{{ "{{cache}}" }} / {{ "{{repository}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+        },
+        {
+          "id": 94,
+          "title": "Single-flight Timeout Rate Optional",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 59 },
+          "datasource": { "uid": "prometheus" },
+          "description": "No data이면 timeout이 발생하지 않았거나 timeout metric series가 아직 생성되지 않은 상태일 수 있습니다.",
+          "targets": [
+            {
+              "expr": "sum by (cache, repository) (rate(fallback_singleflight_timeout_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "{{ "{{cache}}" }} / {{ "{{repository}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+        {
+          "id": 95,
+          "title": "DB Fallback Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 59 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (repository, reason) (rate(safespot_db_fallback_queries_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "{{ "{{repository}}" }} / {{ "{{reason}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+        {
+          "id": 96,
+          "title": "Hikari Pending",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 67 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (pod, service) (hikaricp_connections_pending{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"})",
+              "legendFormat": "{{ "{{pod}}" }} / {{ "{{service}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        },
+        {
+          "id": 97,
+          "title": "HTTP p99 by URI",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 67 },
+          "datasource": { "uid": "prometheus" },
+          "description": "cold miss latency 자체는 single-flight로 제거되지 않으므로 p99와 함께 봅니다.",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}[5m])))",
+              "legendFormat": "{{ "{{uri}}" }} p99"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 } }
+        },
+        {
           "id": 25,
           "title": "JVM Heap",
           "type": "row",
           "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 50 },
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 75 },
           "panels": []
         },
         {
           "id": 26,
           "title": "Heap Total Usage % (Warning >80%, Critical >90%)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 51 },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 76 },
           "datasource": { "uid": "prometheus" },
           "description": "Warning: >80% for 5m | Critical: >90% for 5m",
           "targets": [
@@ -288,7 +415,7 @@ data:
           "id": 27,
           "title": "Heap by Pool: Eden / Survivor — bytes (used)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 51 },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 76 },
           "datasource": { "uid": "prometheus" },
           "description": "Eden/Survivor는 JVM에 따라 max가 부정확하므로 used bytes 절대값으로 표시. Old Gen은 우측 패널 참조.",
           "targets": [
@@ -303,7 +430,7 @@ data:
           "id": 28,
           "title": "Old Gen Usage % (Warning >70%, Critical >85%)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 51 },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 76 },
           "datasource": { "uid": "prometheus" },
           "description": "Warning: >70% for 5m | Critical: >85% for 5m — Full GC 전조",
           "targets": [
@@ -325,7 +452,7 @@ data:
           "id": 29,
           "title": "GC Pause Time Ratio (Warning >5%, Critical >10%)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 59 },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 84 },
           "datasource": { "uid": "prometheus" },
           "description": "초당 GC 소비 시간 비율. 0.05=5%(warning), 0.10=10%(critical) | GC pause 미발생 시 No data",
           "targets": [
@@ -345,7 +472,7 @@ data:
           "id": 30,
           "title": "Average GC Pause (Warning >200ms, Critical >1s)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 59 },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 84 },
           "datasource": { "uid": "prometheus" },
           "description": "Warning: >200ms | Critical: >1s | GC pause 미발생 시 No data",
           "targets": [
@@ -366,7 +493,7 @@ data:
           "id": 31,
           "title": "Non-Heap Usage (Metaspace / CodeCache 등)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 59 },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 84 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -380,7 +507,7 @@ data:
           "id": 32,
           "title": "GC Pause Count",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 67 },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 92 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -394,7 +521,7 @@ data:
           "id": 33,
           "title": "Max GC Pause",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 67 },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 92 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -409,14 +536,14 @@ data:
           "title": "Container / CPU",
           "type": "row",
           "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 75 },
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 100 },
           "panels": []
         },
         {
           "id": 41,
           "title": "Container Memory Working Set",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 76 },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 101 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -430,7 +557,7 @@ data:
           "id": 42,
           "title": "Memory Limit Usage % (Warning >85%, Critical >95%)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 76 },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 101 },
           "datasource": { "uid": "prometheus" },
           "description": "Warning: >85% | Critical: >95%",
           "targets": [
@@ -452,7 +579,7 @@ data:
           "id": 43,
           "title": "JVM vs Container Memory Gap (off-heap 추정)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 76 },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 101 },
           "datasource": { "uid": "prometheus" },
           "description": "container working_set - JVM total used = native/off-heap/direct buffer 추정값",
           "targets": [
@@ -467,7 +594,7 @@ data:
           "id": 44,
           "title": "CPU Usage by Pod",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 84 },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 109 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -481,7 +608,7 @@ data:
           "id": 45,
           "title": "CPU Throttling Ratio (Warning >20%)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 84 },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 109 },
           "datasource": { "uid": "prometheus" },
           "description": "Warning: >20% throttled",
           "targets": [
@@ -502,14 +629,14 @@ data:
           "title": "JVM Threads / Optional Tomcat Debug",
           "type": "row",
           "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 92 },
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 117 },
           "panels": []
         },
         {
           "id": 51,
           "title": "JVM Live Threads",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 93 },
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 118 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -523,7 +650,7 @@ data:
           "id": 52,
           "title": "JVM Peak Threads",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 93 },
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 118 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -537,7 +664,7 @@ data:
           "id": 53,
           "title": "Optional Debug - Tomcat Busy Threads",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 93 },
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 118 },
           "datasource": { "uid": "prometheus" },
           "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. No data is expected unless the application starts exposing these metrics.",
           "targets": [
@@ -552,7 +679,7 @@ data:
           "id": 54,
           "title": "Optional Debug - Tomcat Busy Ratio",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 93 },
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 118 },
           "datasource": { "uid": "prometheus" },
           "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. No data is expected unless the application starts exposing these metrics.",
           "targets": [
@@ -573,7 +700,7 @@ data:
           "id": 60,
           "title": "Optional Debug - Tomcat Current Threads",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 101 },
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 126 },
           "datasource": { "uid": "prometheus" },
           "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. No data is expected unless the application starts exposing these metrics.",
           "targets": [
@@ -588,7 +715,7 @@ data:
           "id": 55,
           "title": "Optional Debug - Tomcat Max Threads",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 101 },
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 126 },
           "datasource": { "uid": "prometheus" },
           "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. No data is expected unless the application starts exposing these metrics.",
           "targets": [
@@ -604,14 +731,14 @@ data:
           "title": "Hikari DB Connection Pool",
           "type": "row",
           "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 109 },
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 134 },
           "panels": []
         },
         {
           "id": 71,
           "title": "Hikari Pending Connections (Critical >0)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 110 },
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 135 },
           "datasource": { "uid": "prometheus" },
           "description": "Critical: >0. No data means metric/scrape/query mismatch, not zero.",
           "targets": [
@@ -631,7 +758,7 @@ data:
           "id": 72,
           "title": "Hikari Active Connections",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 110 },
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 135 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -645,7 +772,7 @@ data:
           "id": 73,
           "title": "Hikari Max Connections",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 110 },
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 135 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -659,7 +786,7 @@ data:
           "id": 74,
           "title": "Hikari Pool Usage %",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 110 },
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 135 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -681,14 +808,14 @@ data:
           "title": "HPA / Scheduling",
           "type": "row",
           "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 118 },
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 143 },
           "panels": []
         },
         {
           "id": 76,
           "title": "HPA Replicas (Current / Desired / Max)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 119 },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 144 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -710,7 +837,7 @@ data:
           "id": 77,
           "title": "Pending Pods (application ns)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 119 },
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 144 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -724,7 +851,7 @@ data:
           "id": 78,
           "title": "api-public-read Pods by Node",
           "type": "stat",
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 119 },
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 144 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {

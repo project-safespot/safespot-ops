@@ -272,6 +272,8 @@ yace:
           - Name
         AWS/ElastiCache:
           - Name
+        AWS/ApplicationELB:
+          - Name
       jobs:
         - type: AWS/RDS
           regions:
@@ -367,6 +369,79 @@ yace:
                 - Average
               period: 60
               length: 300
+        - type: AWS/ApplicationELB
+          regions:
+            - ${AWS_REGION}
+          searchTags:
+            - key: Name
+              value: safespot-dev-alb
+          metrics:
+            - name: RequestCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: TargetResponseTime
+              statistics:
+                - Average
+                - Maximum
+              period: 60
+              length: 300
+            - name: HTTPCode_ELB_4XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: HTTPCode_ELB_5XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: ActiveConnectionCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: NewConnectionCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: RejectedConnectionCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+        - type: AWS/ApplicationELB
+          regions:
+            - ${AWS_REGION}
+          searchTags:
+            - key: Name
+              value: safespot-dev-alb
+          dimensionNameRequirements:
+            - LoadBalancer
+            - TargetGroup
+          metrics:
+            - name: HTTPCode_Target_2XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: HTTPCode_Target_4XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: HTTPCode_Target_5XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: TargetConnectionErrorCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
     static:
 
 YACE
@@ -448,7 +523,7 @@ SQS_READMODEL
   if [[ -n "${ENVIRONMENT_CACHE_REFRESH_QUEUE_NAME}" ]]; then
     cat <<SQS_ENV
       - namespace: AWS/SQS
-        name: sqs-env-cache-refresh
+        name: sqs-environment-cache-refresh
         regions:
           - ${AWS_REGION}
         dimensions:
@@ -456,6 +531,10 @@ SQS_READMODEL
             value: "${ENVIRONMENT_CACHE_REFRESH_QUEUE_NAME}"
         metrics:
           - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateNumberOfMessagesNotVisible
             statistics: [Maximum]
             period: 60
             length: 300
@@ -476,6 +555,69 @@ SQS_READMODEL
             period: 60
             length: 300
 SQS_ENV
+  fi
+
+  if [[ -n "${CACHE_REFRESH_DLQ_NAME}" ]]; then
+    cat <<SQS_CACHE_DLQ
+      - namespace: AWS/SQS
+        name: sqs-cache-refresh-dlq
+        regions:
+          - ${AWS_REGION}
+        dimensions:
+          - name: QueueName
+            value: "${CACHE_REFRESH_DLQ_NAME}"
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+SQS_CACHE_DLQ
+  fi
+
+  if [[ -n "${READMODEL_REFRESH_DLQ_NAME}" ]]; then
+    cat <<SQS_READMODEL_DLQ
+      - namespace: AWS/SQS
+        name: sqs-readmodel-refresh-dlq
+        regions:
+          - ${AWS_REGION}
+        dimensions:
+          - name: QueueName
+            value: "${READMODEL_REFRESH_DLQ_NAME}"
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+SQS_READMODEL_DLQ
+  fi
+
+  if [[ -n "${ENVIRONMENT_CACHE_REFRESH_DLQ_NAME}" ]]; then
+    cat <<SQS_ENV_DLQ
+      - namespace: AWS/SQS
+        name: sqs-environment-cache-refresh-dlq
+        regions:
+          - ${AWS_REGION}
+        dimensions:
+          - name: QueueName
+            value: "${ENVIRONMENT_CACHE_REFRESH_DLQ_NAME}"
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+SQS_ENV_DLQ
   fi
 
   if [[ -n "${LAMBDA_FUNCTION_NAME}" ]]; then

@@ -12,7 +12,7 @@ data:
   cloudwatch.json: |
     {
       "uid": "safespot-cloudwatch",
-      "title": "SafeSpot — AWS Metrics via YACE (RDS / SQS / Lambda)",
+      "title": "SafeSpot — AWS Metrics via YACE (RDS / SQS / Lambda / ALB)",
       "tags": ["safespot", "cloudwatch", "yace", "prometheus", "aws", "infra"],
       "timezone": "Asia/Seoul",
       "refresh": "60s",
@@ -277,6 +277,139 @@ data:
               "expr": "aws_lambda_concurrent_executions_maximum",
               "legendFormat": "concurrent - {{`{{ name }}`}}",
               "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 104,
+          "title": "── ALB (Application Load Balancer) ──",
+          "type": "text",
+          "gridPos": { "x": 0, "y": 37, "w": 24, "h": 1 },
+          "options": { "mode": "markdown" },
+          "description": "YACE metric prefix: aws_applicationelb_*  |  Explore: {__name__=~\"aws_applicationelb_.*\"}"
+        },
+        {
+          "id": 14,
+          "title": "ALB Request TPS",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 38, "w": 12, "h": 6 },
+          "datasource": "Prometheus",
+          "description": "ALB가 수신한 초당 요청 수. rate(RequestCount Sum[1m]). 메트릭 이름: aws_applicationelb_request_count_sum",
+          "targets": [
+            {
+              "expr": "rate(aws_applicationelb_request_count_sum[1m])",
+              "legendFormat": "ALB TPS {{`{{ dimension_LoadBalancer }}`}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 15,
+          "title": "ALB TargetResponseTime (avg / max)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 38, "w": 12, "h": 6 },
+          "datasource": "Prometheus",
+          "description": "ALB → Target 간 응답 시간. 메트릭: aws_applicationelb_target_response_time_average / _maximum",
+          "targets": [
+            {
+              "expr": "aws_applicationelb_target_response_time_average",
+              "legendFormat": "avg {{`{{ dimension_LoadBalancer }}`}}",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_applicationelb_target_response_time_maximum",
+              "legendFormat": "max {{`{{ dimension_LoadBalancer }}`}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 16,
+          "title": "ALB 4xx / 5xx (ELB 레벨)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 44, "w": 12, "h": 6 },
+          "datasource": "Prometheus",
+          "description": "ALB 자체가 반환한 4xx/5xx. 메트릭: aws_applicationelb_httpcode_elb_4xx_count_sum / _5xx_count_sum",
+          "targets": [
+            {
+              "expr": "rate(aws_applicationelb_httpcode_elb_4xx_count_sum[1m])",
+              "legendFormat": "ELB 4xx",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(aws_applicationelb_httpcode_elb_5xx_count_sum[1m])",
+              "legendFormat": "ELB 5xx",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 17,
+          "title": "Target 2xx / 4xx / 5xx (Target Group 레벨)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 44, "w": 12, "h": 6 },
+          "datasource": "Prometheus",
+          "description": "Target Group 이 반환한 HTTP 상태 코드. 메트릭: aws_applicationelb_httpcode_target_{2|4|5}xx_count_sum",
+          "targets": [
+            {
+              "expr": "rate(aws_applicationelb_httpcode_target_2xx_count_sum[1m])",
+              "legendFormat": "Target 2xx {{`{{ dimension_TargetGroup }}`}}",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(aws_applicationelb_httpcode_target_4xx_count_sum[1m])",
+              "legendFormat": "Target 4xx {{`{{ dimension_TargetGroup }}`}}",
+              "refId": "B"
+            },
+            {
+              "expr": "rate(aws_applicationelb_httpcode_target_5xx_count_sum[1m])",
+              "legendFormat": "Target 5xx {{`{{ dimension_TargetGroup }}`}}",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 18,
+          "title": "ALB Rejected / TargetConnectionError",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 50, "w": 12, "h": 6 },
+          "datasource": "Prometheus",
+          "description": "거절된 연결 수 + Target 연결 오류 수. ALB 수용 한계 또는 Target 연결 불안정 시 급등.",
+          "targets": [
+            {
+              "expr": "rate(aws_applicationelb_rejected_connection_count_sum[1m])",
+              "legendFormat": "Rejected connections/s",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(aws_applicationelb_target_connection_error_count_sum[1m])",
+              "legendFormat": "Target connection errors/s {{`{{ dimension_TargetGroup }}`}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 19,
+          "title": "ALB Active / New Connections",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 50, "w": 12, "h": 6 },
+          "datasource": "Prometheus",
+          "description": "동시 활성 연결 수 및 신규 연결 수. 메트릭: aws_applicationelb_active_connection_count_sum / _new_connection_count_sum",
+          "targets": [
+            {
+              "expr": "aws_applicationelb_active_connection_count_sum",
+              "legendFormat": "Active connections",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_applicationelb_new_connection_count_sum",
+              "legendFormat": "New connections",
+              "refId": "B"
             }
           ]
         }

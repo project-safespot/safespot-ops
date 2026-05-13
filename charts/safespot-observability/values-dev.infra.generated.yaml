@@ -29,6 +29,8 @@ yace:
           - Name
         AWS/ElastiCache:
           - Name
+        AWS/ApplicationELB:
+          - Name
       jobs:
         - type: AWS/RDS
           regions:
@@ -124,6 +126,81 @@ yace:
                 - Average
               period: 60
               length: 300
+
+        - type: AWS/ApplicationELB
+          regions:
+            - ap-northeast-2
+          searchTags:
+            - key: Name
+              value: safespot-dev-alb
+          metrics:
+            - name: RequestCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: TargetResponseTime
+              statistics:
+                - Average
+                - Maximum
+              period: 60
+              length: 300
+            - name: HTTPCode_ELB_4XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: HTTPCode_ELB_5XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: ActiveConnectionCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: NewConnectionCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: RejectedConnectionCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+
+        - type: AWS/ApplicationELB
+          regions:
+            - ap-northeast-2
+          searchTags:
+            - key: Name
+              value: safespot-dev-alb
+          dimensionNameRequirements:
+            - LoadBalancer
+            - TargetGroup
+          metrics:
+            - name: HTTPCode_Target_2XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: HTTPCode_Target_4XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: HTTPCode_Target_5XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: TargetConnectionErrorCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
     static:
 
       - namespace: AWS/SQS
@@ -191,7 +268,7 @@ yace:
             period: 60
             length: 300
       - namespace: AWS/SQS
-        name: sqs-env-cache-refresh
+        name: sqs-environment-cache-refresh
         regions:
           - ap-northeast-2
         dimensions:
@@ -199,6 +276,10 @@ yace:
             value: "safespot-dev-async-worker-sqs-environment-cache-refresh"
         metrics:
           - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateNumberOfMessagesNotVisible
             statistics: [Maximum]
             period: 60
             length: 300
@@ -216,6 +297,54 @@ yace:
             length: 300
           - name: NumberOfMessagesDeleted
             statistics: [Sum]
+            period: 60
+            length: 300
+      - namespace: AWS/SQS
+        name: sqs-cache-refresh-dlq
+        regions:
+          - ap-northeast-2
+        dimensions:
+          - name: QueueName
+            value: "safespot-dev-async-worker-dlq-cache-refresh"
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+      - namespace: AWS/SQS
+        name: sqs-readmodel-refresh-dlq
+        regions:
+          - ap-northeast-2
+        dimensions:
+          - name: QueueName
+            value: "safespot-dev-async-worker-dlq-readmodel-refresh"
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+      - namespace: AWS/SQS
+        name: sqs-environment-cache-refresh-dlq
+        regions:
+          - ap-northeast-2
+        dimensions:
+          - name: QueueName
+            value: "safespot-dev-async-worker-dlq-environment-cache-refresh"
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
             period: 60
             length: 300
       - namespace: AWS/Lambda

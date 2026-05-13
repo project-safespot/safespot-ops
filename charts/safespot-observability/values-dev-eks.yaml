@@ -478,6 +478,8 @@ yace:
           - Name
         AWS/ElastiCache:
           - Name
+        AWS/ApplicationELB:
+          - Name
       jobs:
         # Aurora RDS
         # TODO: searchTags.value를 Aurora 클러스터에 실제 부여된 AWS 태그 값으로 교체하세요
@@ -577,6 +579,84 @@ yace:
                 - Average
               period: 60
               length: 300
+        # ApplicationELB — LoadBalancer dimension (ALB 전체 집계)
+        # TODO: searchTags.value를 ALB에 실제 부여된 AWS Name 태그 값으로 교체하세요
+        # IRSA 역할에 elasticloadbalancing:DescribeLoadBalancers, tag:GetResources 권한 추가 필요
+        - type: AWS/ApplicationELB
+          regions:
+            - ap-northeast-2
+          searchTags:
+            - key: Name
+              value: safespot-dev-alb
+          metrics:
+            - name: RequestCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: TargetResponseTime
+              statistics:
+                - Average
+                - Maximum
+              period: 60
+              length: 300
+            - name: HTTPCode_ELB_4XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: HTTPCode_ELB_5XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: ActiveConnectionCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: NewConnectionCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: RejectedConnectionCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+        # ApplicationELB — LoadBalancer+TargetGroup dimension (Target Group 별 breakdown)
+        # TODO: searchTags.value를 위와 동일한 ALB Name 태그 값으로 교체하세요
+        - type: AWS/ApplicationELB
+          regions:
+            - ap-northeast-2
+          searchTags:
+            - key: Name
+              value: safespot-dev-alb
+          dimensionNameRequirements:
+            - LoadBalancer
+            - TargetGroup
+          metrics:
+            - name: HTTPCode_Target_2XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: HTTPCode_Target_4XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: HTTPCode_Target_5XX_Count
+              statistics:
+                - Sum
+              period: 60
+              length: 300
+            - name: TargetConnectionErrorCount
+              statistics:
+                - Sum
+              period: 60
+              length: 300
     static:
       # SQS Queues
       # TODO: dimensions[].value를 실제 SQS 큐 이름으로 교체하세요 (Terraform output 또는 AWS 콘솔 확인)
@@ -649,7 +729,7 @@ yace:
       #       length: 300
       #
       # - namespace: AWS/SQS
-      #   name: sqs-env-cache-refresh
+      #   name: sqs-environment-cache-refresh
       #   regions:
       #     - ap-northeast-2
       #   dimensions:
@@ -657,6 +737,10 @@ yace:
       #       value: "<TODO: environment-cache-refresh-queue-name>"
       #   metrics:
       #     - name: ApproximateNumberOfMessagesVisible
+      #       statistics: [Maximum]
+      #       period: 60
+      #       length: 300
+      #     - name: ApproximateNumberOfMessagesNotVisible
       #       statistics: [Maximum]
       #       period: 60
       #       length: 300

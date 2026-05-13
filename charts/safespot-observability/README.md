@@ -107,6 +107,137 @@ kubectl get --raw \
 kubectl -n monitoring port-forward svc/safespot-observability-kube-prometheus 9090
 ```
 
+## api-public-read fallback single-flight metrics
+
+`api-public-read`는 cache miss spike가 per-request DB fallback으로 이어지는 fallback storm을 줄이기 위해 per-key single-flight를 사용합니다.
+
+적용 cache:
+
+- `shelter_status`
+- `disaster_messages`
+- `disaster_detail`
+
+Actuator에서 실제 metric 노출 여부를 확인합니다.
+
+```bash
+curl -s http://localhost:28080/api/public/actuator/prometheus \
+  | grep -Ei 'single|flight|fallback'
+```
+
+Prometheus discovery query:
+
+```promql
+{__name__=~".*single.*|.*flight.*|.*fallback.*"}
+```
+
+실제 확인된 metric:
+
+- `fallback_singleflight_join_total`
+- `fallback_singleflight_leader_total`
+- `fallback_suppressed_total`
+- `safespot_cache_fallback_total`
+- `safespot_db_fallback_queries_total`
+- `safespot_db_fallback_seconds_count`
+- `safespot_db_fallback_seconds_sum`
+- `safespot_db_fallback_seconds_max`
+
+해석:
+
+- Leader는 실제 DB fallback을 수행한 요청입니다.
+- Join은 동일 key에 대해 leader 결과를 기다린 follower 요청입니다.
+- Suppressed는 single-flight join으로 DB fallback이 억제된 요청입니다.
+- Suppression Ratio는 `join / (leader + join)`입니다.
+- single-flight는 DB fallback 폭주를 줄이지만 cold miss latency 자체를 제거하지는 않습니다.
+- stale serve는 아직 별도 후속 과제입니다.
+
+14:34 500 TPS 테스트에서는 `disaster_messages` 경로에서 single-flight 효과가 확인되었습니다.
+
+- `disaster_messages` cache fallback total: 395
+- leader: 96
+- join: 299
+- suppression ratio: 약 75.7%
+
+`shelter_status`는 14:34 테스트에서 miss가 없어 별도 miss storm 테스트가 필요합니다.
+
+## ALB CloudWatch 메트릭 (YACE)
+
+YACE가 `AWS/ApplicationELB` namespace에서 수집하는 메트릭과 Prometheus에서 조회되는 이름입니다.
+
+> **검증 쿼리**: Prometheus Explore에서 `{__name__=~"aws_applicationelb_.*"}` 실행
+
+### Prometheus 메트릭 이름 목록
+
+| CloudWatch 메트릭 | 통계 | Prometheus 이름 | 설명 |
+|---|---|---|---|
+| `RequestCount` | Sum | `aws_applicationelb_request_count_sum` | ALB가 수신한 총 요청 수 (60s bucket) |
+| `TargetResponseTime` | Average | `aws_applicationelb_target_response_time_average` | ALB → Target 평균 응답 시간 (초) |
+| `TargetResponseTime` | Maximum | `aws_applicationelb_target_response_time_maximum` | ALB → Target 최대 응답 시간 (초) |
+| `HTTPCode_ELB_4XX_Count` | Sum | `aws_applicationelb_httpcode_elb_4xx_count_sum` | ALB 자체가 반환한 4xx 수 |
+| `HTTPCode_ELB_5XX_Count` | Sum | `aws_applicationelb_httpcode_elb_5xx_count_sum` | ALB 자체가 반환한 5xx 수 |
+| `HTTPCode_Target_2XX_Count` | Sum | `aws_applicationelb_httpcode_target_2xx_count_sum` | Target이 반환한 2xx 수 (TargetGroup 별) |
+| `HTTPCode_Target_4XX_Count` | Sum | `aws_applicationelb_httpcode_target_4xx_count_sum` | Target이 반환한 4xx 수 (TargetGroup 별) |
+| `HTTPCode_Target_5XX_Count` | Sum | `aws_applicationelb_httpcode_target_5xx_count_sum` | Target이 반환한 5xx 수 (TargetGroup 별) |
+| `TargetConnectionErrorCount` | Sum | `aws_applicationelb_target_connection_error_count_sum` | Target 연결 실패 수 (TargetGroup 별) |
+| `RejectedConnectionCount` | Sum | `aws_applicationelb_rejected_connection_count_sum` | ALB가 거절한 연결 수 |
+| `ActiveConnectionCount` | Sum | `aws_applicationelb_active_connection_count_sum` | 현재 활성 TCP 연결 수 |
+| `NewConnectionCount` | Sum | `aws_applicationelb_new_connection_count_sum` | 신규 TCP 연결 수 |
+
+> **주의**: YACE 버전에 따라 메트릭 이름 변환 규칙이 다를 수 있습니다. 실제 이름은 위의 검증 쿼리로 확인하세요.
+
+### ALB TPS 계산 예시
+
+```promql
+# ALB TPS (초당 요청 수)
+rate(aws_applicationelb_request_count_sum[1m])
+
+# Application TPS (http_server_requests 기반)
+sum(rate(http_server_requests_seconds_count{namespace="application"}[1m]))
+
+# ALB TPS와 App TPS 비교 (갭 = ALB → App 구간 drop)
+rate(aws_applicationelb_request_count_sum[1m])
+  - sum(rate(http_server_requests_seconds_count{namespace="application"}[1m]))
+```
+
+### ALB dimension 레이블
+
+YACE discovery로 수집된 메트릭에는 다음 레이블이 자동 추가됩니다.
+
+| 레이블 | 예시 값 | 설명 |
+|---|---|---|
+| `dimension_LoadBalancer` | `app/safespot-dev-alb/abc123` | ALB ARN suffix |
+| `dimension_TargetGroup` | `targetgroup/safespot-dev-tg/def456` | TargetGroup ARN suffix (TargetGroup 레벨 메트릭만) |
+| `tag_Name` | `safespot-dev-alb` | ALB에 부여된 Name 태그 |
+
+### ALB YACE 수집 설정 확인
+
+1. `values-dev-eks.yaml` → `yace.config.discovery.jobs` 에서 `type: AWS/ApplicationELB` 두 개 job 확인
+2. YACE IRSA 역할에 다음 권한 필요:
+   - `elasticloadbalancing:DescribeLoadBalancers`
+   - `elasticloadbalancing:DescribeTargetGroups`
+   - `tag:GetResources`
+   - `cloudwatch:GetMetricData`
+
+### AWS CLI로 직접 확인
+
+```bash
+# CloudWatch에서 RequestCount 수집 가능 여부 확인
+aws cloudwatch list-metrics \
+  --region ap-northeast-2 \
+  --namespace AWS/ApplicationELB \
+  --metric-name RequestCount
+
+# 특정 시간대 TPS 확인 (LoadBalancer dimension 값은 위 명령 결과에서 확인)
+aws cloudwatch get-metric-statistics \
+  --region ap-northeast-2 \
+  --namespace AWS/ApplicationELB \
+  --metric-name RequestCount \
+  --dimensions Name=LoadBalancer,Value=<LoadBalancer dimension value> \
+  --start-time <UTC_START>  \
+  --end-time <UTC_END> \
+  --period 60 \
+  --statistics Sum
+```
+
 ## EKS dev 배포 절차
 
 ### EKS values 파일 적용 주의
