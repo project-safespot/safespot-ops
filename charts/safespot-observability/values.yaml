@@ -5,13 +5,32 @@ kube-prometheus-stack:
   grafana:
     service:
       type: ClusterIP
+    env:
+      GF_RENDERING_SERVER_URL: "http://safespot-observability-dev-grafana-image-renderer:8081/render"
+      GF_RENDERING_CALLBACK_URL: "http://safespot-observability-dev-grafana.monitoring.svc.cluster.local:80/"
     sidecar:
       dashboards:
         enabled: true
         label: grafana_dashboard
         labelValue: "1"
         searchNamespace: ALL
-
+    imageRenderer:
+      enabled: true
+      replicas: 1
+      image:
+        repository: grafana/grafana-image-renderer
+        tag: 3.0.1
+      service:
+        enabled: true
+        type: ClusterIP
+        port: 8081 
+      resources:
+        requests:
+          cpu: 250m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
   prometheus:
     service:
       type: ClusterIP
