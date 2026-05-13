@@ -1,0 +1,571 @@
+{{- if .Values.safespot.dashboards.cacheRegeneration.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-cache-regeneration-flow
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+    env: dev
+    region: ap-northeast-2
+data:
+  cache-regeneration-flow.json: |
+    {{- `
+    {
+      "title": "SafeSpot - Cache Regeneration Flow",
+      "uid": "safespot-cache-regeneration-flow",
+      "tags": ["safespot", "cache", "sqs", "lambda", "regeneration"],
+      "timezone": "Asia/Seoul",
+      "schemaVersion": 36,
+      "version": 1,
+      "refresh": "30s",
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "editable": true,
+      "graphTooltip": 1,
+      "templating": {
+        "list": []
+      },
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "panels": [
+        {
+          "type": "row",
+          "title": "A. Queue Flow Overview",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "id": 1,
+          "panels": []
+        },
+        {
+          "id": 2,
+          "title": "SQS Messages Sent by Queue",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+          "targets": [
+            {
+              "expr": "sum by (name) (rate(aws_sqs_number_of_messages_sent_sum{name=~\"sqs-cache-refresh|sqs-readmodel-refresh|sqs-environment-cache-refresh\"}[1m]))",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "msgps",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 3,
+          "title": "SQS Messages Received by Queue",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+          "targets": [
+            {
+              "expr": "sum by (name) (rate(aws_sqs_number_of_messages_received_sum{name=~\"sqs-cache-refresh|sqs-readmodel-refresh|sqs-environment-cache-refresh\"}[1m]))",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "msgps",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 4,
+          "title": "SQS Messages Deleted by Queue",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+          "targets": [
+            {
+              "expr": "sum by (name) (rate(aws_sqs_number_of_messages_deleted_sum{name=~\"sqs-cache-refresh|sqs-readmodel-refresh|sqs-environment-cache-refresh\"}[1m]))",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "msgps",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 5,
+          "title": "SQS Visible Messages by Queue",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 9 },
+          "targets": [
+            {
+              "expr": "max by (name) (aws_sqs_approximate_number_of_messages_visible_maximum{name=~\"sqs-cache-refresh|sqs-readmodel-refresh|sqs-environment-cache-refresh\"})",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 6,
+          "title": "SQS NotVisible Messages by Queue",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 9 },
+          "targets": [
+            {
+              "expr": "max by (name) (aws_sqs_approximate_number_of_messages_not_visible_maximum{name=~\"sqs-cache-refresh|sqs-readmodel-refresh|sqs-environment-cache-refresh\"})",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 7,
+          "title": "SQS Oldest Message Age by Queue",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 9 },
+          "targets": [
+            {
+              "expr": "max by (name) (aws_sqs_approximate_age_of_oldest_message_maximum{name=~\"sqs-cache-refresh|sqs-readmodel-refresh|sqs-environment-cache-refresh\"})",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 8,
+          "title": "DLQ Visible Messages",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+          "targets": [
+            {
+              "expr": "max by (name) (aws_sqs_approximate_number_of_messages_visible_maximum{name=~\"sqs-cache-refresh-dlq|sqs-readmodel-refresh-dlq|sqs-environment-cache-refresh-dlq\"})",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 9,
+          "title": "DLQ Oldest Message Age",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+          "targets": [
+            {
+              "expr": "max by (name) (aws_sqs_approximate_age_of_oldest_message_maximum{name=~\"sqs-cache-refresh-dlq|sqs-readmodel-refresh-dlq|sqs-environment-cache-refresh-dlq\"})",
+              "legendFormat": "{{name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "type": "row",
+          "title": "B. Lambda Consumer Health",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+          "id": 10,
+          "panels": []
+        },
+        {
+          "id": 11,
+          "title": "Lambda Invocations",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 26 },
+          "targets": [
+            {
+              "expr": "sum(rate(aws_lambda_invocations_sum{name=\"lambda-async-worker\"}[1m]))",
+              "legendFormat": "invocations/sec",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 12,
+          "title": "Lambda Errors",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 26 },
+          "targets": [
+            {
+              "expr": "sum(rate(aws_lambda_errors_sum{name=\"lambda-async-worker\"}[1m]))",
+              "legendFormat": "errors/sec",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 13,
+          "title": "Lambda Throttles",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 26 },
+          "targets": [
+            {
+              "expr": "sum(rate(aws_lambda_throttles_sum{name=\"lambda-async-worker\"}[1m]))",
+              "legendFormat": "throttles/sec",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 14,
+          "title": "Lambda Duration Avg / Max",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+          "targets": [
+            {
+              "expr": "avg(aws_lambda_duration_average{name=\"lambda-async-worker\"})",
+              "legendFormat": "duration avg",
+              "refId": "A"
+            },
+            {
+              "expr": "max(aws_lambda_duration_maximum{name=\"lambda-async-worker\"})",
+              "legendFormat": "duration max",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 15,
+          "title": "Lambda Concurrent Executions",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+          "targets": [
+            {
+              "expr": "max(aws_lambda_concurrent_executions_maximum{name=\"lambda-async-worker\"})",
+              "legendFormat": "concurrent executions",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "type": "row",
+          "title": "C. Cache Regeneration Domain View",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+          "id": 16,
+          "panels": []
+        },
+        {
+          "id": 17,
+          "title": "api-public-read Publish Rate by Queue / Cache / Result",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 43 },
+          "targets": [
+            {
+              "expr": "sum by (service, cache, queue, envelope, reason, result) (rate(safespot_cache_regeneration_publish_total[1m]))",
+              "legendFormat": "{{service}} / {{cache}} / {{queue}} / {{reason}} / {{result}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 18,
+          "title": "api-public-read Publish Increase in Selected Range",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 43 },
+          "targets": [
+            {
+              "expr": "sum by (service, cache, queue, envelope, reason, result) (increase(safespot_cache_regeneration_publish_total[$__range]))",
+              "legendFormat": "{{service}} / {{cache}} / {{queue}} / {{reason}} / {{result}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 19,
+          "title": "Cache Regeneration Unsupported / Failure",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 52 },
+          "targets": [
+            {
+              "expr": "sum by (service, cache, queue, reason, result) (rate(safespot_cache_regeneration_publish_total{result=~\"unsupported|failure\"}[1m]))",
+              "legendFormat": "{{service}} / {{cache}} / {{queue}} / {{reason}} / {{result}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 20,
+          "title": "Backward-Compatible Regeneration Requested",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 52 },
+          "targets": [
+            {
+              "expr": "sum by (service, cache, reason, result) (rate(safespot_cache_regeneration_requested_total[1m]))",
+              "legendFormat": "{{service}} / {{cache}} / {{reason}} / {{result}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (service, cache, reason, result) (rate(api_read_cache_regen_publish_total[1m]))",
+              "legendFormat": "api_read / {{service}} / {{cache}} / {{reason}} / {{result}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 21,
+          "title": "external-ingestion Publish Rate by Queue / EventType / Result",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 52 },
+          "targets": [
+            {
+              "expr": "sum by (source, queue, eventType, result) (rate(external_ingestion_sqs_publish_total[1m]))",
+              "legendFormat": "{{source}} / {{queue}} / {{eventType}} / {{result}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 22,
+          "title": "Cache Hit Rate by Cache",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 60 },
+          "targets": [
+            {
+              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=\"hit\"}[5m])) / sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=~\"hit|miss|parse_error\"}[5m]))",
+              "legendFormat": "{{cache}} hit rate",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0,
+              "max": 1,
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 23,
+          "title": "Redis Cache Fallback by Cache / Reason",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 60 },
+          "targets": [
+            {
+              "expr": "sum by (cache, reason) (rate(safespot_cache_fallback_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "{{cache}} / {{reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 24,
+          "title": "DB Fallback Count by Repository / Reason",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 68 },
+          "targets": [
+            {
+              "expr": "sum by (repository, reason) (rate(safespot_db_fallback_queries_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "{{repository}} / {{reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "id": 25,
+          "title": "DB Fallback Latency Avg by Repository",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 68 },
+          "targets": [
+            {
+              "expr": "sum by (repository) (rate(safespot_db_fallback_seconds_sum{service=\"api-public-read\"}[5m])) / sum by (repository) (rate(safespot_db_fallback_seconds_count{service=\"api-public-read\"}[5m]))",
+              "legendFormat": "{{repository}} avg",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" }
+            },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "none" } }
+        }
+      ]
+    }
+    ` | nindent 4 }}
+{{- end }}
