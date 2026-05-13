@@ -266,6 +266,12 @@ safespot:
       enabled: true
     cacheRegeneration:
       enabled: true
+    serviceDrilldown:
+      enabled: true
+    podTroubleFinder:
+      enabled: true
+    redisDbFallback:
+      enabled: true
 
   prometheusRules:
     redis:

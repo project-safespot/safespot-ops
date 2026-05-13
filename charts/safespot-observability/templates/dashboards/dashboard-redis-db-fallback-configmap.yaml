@@ -1,0 +1,193 @@
+{{- if .Values.safespot.dashboards.redisDbFallback.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-redis-db-fallback
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+    env: dev
+    region: ap-northeast-2
+data:
+  redis-db-fallback.json: |
+    {{- `
+    {
+      "title": "SafeSpot - Redis / DB Fallback",
+      "uid": "safespot-redis-db-fallback",
+      "tags": ["safespot", "redis", "db", "fallback", "api-public-read"],
+      "timezone": "Asia/Seoul",
+      "schemaVersion": 36,
+      "version": 1,
+      "refresh": "10s",
+      "time": { "from": "now-30m", "to": "now" },
+      "editable": true,
+      "graphTooltip": 1,
+      "templating": { "list": [] },
+      "annotations": { "list": [] },
+      "panels": [
+        {
+          "id": 1,
+          "type": "row",
+          "title": "Redis / DB Fallback",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "panels": []
+        },
+        {
+          "id": 2,
+          "title": "Cache Hit Rate by Cache",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+          "targets": [
+            {
+              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=\"hit\"}[5m])) / sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=~\"hit|miss|parse_error\"}[5m]))",
+              "legendFormat": "{{cache}} hit rate",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 3,
+          "title": "Cache Miss / Parse Error Rate",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+          "targets": [
+            {
+              "expr": "sum by (cache, result) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=~\"miss|parse_error\"}[1m]))",
+              "legendFormat": "{{cache}} / {{result}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 4,
+          "title": "Redis Cache Fallback by Cache / Reason",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+          "targets": [
+            {
+              "expr": "sum by (cache, reason) (rate(safespot_cache_fallback_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "{{cache}} / {{reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 5,
+          "title": "DB Fallback Count by Repository / Reason",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+          "targets": [
+            {
+              "expr": "sum by (repository, reason) (rate(safespot_db_fallback_queries_total{service=\"api-public-read\"}[1m]))",
+              "legendFormat": "{{repository}} / {{reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 6,
+          "title": "DB Fallback Latency Avg by Repository",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+          "targets": [
+            {
+              "expr": "sum by (repository) (rate(safespot_db_fallback_seconds_sum{service=\"api-public-read\"}[5m])) / sum by (repository) (rate(safespot_db_fallback_seconds_count{service=\"api-public-read\"}[5m]))",
+              "legendFormat": "{{repository}} avg",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 7,
+          "title": "DB Fallback Latency p95 / p99",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (repository, le) (rate(safespot_db_fallback_seconds_bucket{service=\"api-public-read\"}[5m])))",
+              "legendFormat": "{{repository}} p95",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum by (repository, le) (rate(safespot_db_fallback_seconds_bucket{service=\"api-public-read\"}[5m])))",
+              "legendFormat": "{{repository}} p99",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 8,
+          "title": "Redis Exporter Connected Clients",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 25 },
+          "targets": [
+            {
+              "expr": "redis_connected_clients",
+              "legendFormat": "{{instance}} clients",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 9,
+          "title": "Redis Memory Used",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 25 },
+          "targets": [
+            {
+              "expr": "redis_memory_used_bytes",
+              "legendFormat": "{{instance}} memory used",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 10,
+          "title": "Redis Rejected Connections / Errors",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 25 },
+          "targets": [
+            {
+              "expr": "rate(redis_rejected_connections_total[1m])",
+              "legendFormat": "{{instance}} rejected",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(redis_keyspace_misses_total[1m])",
+              "legendFormat": "{{instance}} keyspace misses",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        }
+      ]
+    }
+    ` | nindent 4 }}
+{{- end }}
