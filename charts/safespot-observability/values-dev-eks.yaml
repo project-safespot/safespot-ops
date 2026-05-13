@@ -570,7 +570,7 @@ yace:
             - ap-northeast-2
           searchTags:
             - key: Name
-              value: safespot-dev-eks
+              value: safespot-dev
           dimensionNameRequirements:
             - ClusterName
             - NodeName
