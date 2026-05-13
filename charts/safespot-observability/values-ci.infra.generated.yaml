@@ -10,6 +10,11 @@
 redis-exporter:
   redisAddress: "redis://ci-redis.example.internal:6379"
 
+fluent-bit:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/ci-fluentbit-irsa"
+
 yace:
   serviceAccount:
     annotations:
