@@ -1,4 +1,4 @@
-{{- if .Values.safespot.dashboards.loadtest.enabled }}
+{{- if .Values.safespot.dashboards.podTroubleFinder.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -42,6 +42,14 @@ data:
       },
       "annotations": { "list": [] },
       "panels": [
+        {
+          "id": 1,
+          "type": "row",
+          "title": "Pod Trouble Finder",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "panels": []
+        },
         {
           "id": 6,
           "title": "Pending Pods",

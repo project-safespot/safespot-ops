@@ -1,4 +1,4 @@
-{{- if .Values.safespot.dashboards.loadtest.enabled }}
+{{- if .Values.safespot.dashboards.serviceDrilldown.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

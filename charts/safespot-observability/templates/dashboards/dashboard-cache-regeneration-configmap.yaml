@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: dashboard-cache-regeneration-flow
+  name: dashboard-cache-regeneration
   namespace: monitoring
   labels:
     grafana_dashboard: "1"
