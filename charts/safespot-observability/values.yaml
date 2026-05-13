@@ -5,9 +5,9 @@ kube-prometheus-stack:
   grafana:
     service:
       type: ClusterIP
-    env:
-      GF_RENDERING_SERVER_URL: "http://safespot-observability-dev-grafana-image-renderer:8081/render"
-      GF_RENDERING_CALLBACK_URL: "http://safespot-observability-dev-grafana.monitoring.svc.cluster.local:80/"
+    # GF_RENDERING_SERVER_URL / GF_RENDERING_CALLBACK_URL는
+    # imageRenderer.enabled: true 시 chart이 자동 생성합니다.
+    # 수동 env 설정 불필요 — 서비스명이 release name에 따라 달라지므로 chart 자동값을 사용합니다.
     sidecar:
       dashboards:
         enabled: true
@@ -19,18 +19,24 @@ kube-prometheus-stack:
       replicas: 1
       image:
         repository: grafana/grafana-image-renderer
-        tag: 3.0.1
+        # v3.6.0+ 에서 /render/version 엔드포인트 지원
+        # v3.0.1은 /healthz (chart 기본값)를 지원하지 않아 liveness probe 404 발생
+        tag: "3.11.6"
+      # healthcheckPath: chart가 liveness probe httpGet.path에 사용하는 단일 설정값
+      # v3.0.1 이하: "/" 사용 / v3.6.0+: "/render/version" 사용 / v5.0.0+: "/healthz" 사용
+      healthcheckPath: /render/version
       service:
         enabled: true
-        type: ClusterIP
-        port: 8081 
+        portName: http
+        port: 8081
+        targetPort: 8081
       resources:
         requests:
           cpu: 250m
-          memory: 256Mi
-        limits:
-          cpu: 500m
           memory: 512Mi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
   prometheus:
     service:
       type: ClusterIP

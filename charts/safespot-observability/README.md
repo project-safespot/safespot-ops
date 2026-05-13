@@ -12,6 +12,62 @@ SafeSpot 전용 관측성 Helm Chart.
 | `values-dev.infra.template.yaml` | SSM 치환용 envsubst 템플릿 (참조용). |
 | `values-dev.infra.generated.yaml` | **스크립트가 생성하는 파일. 직접 편집 금지.** |
 
+## Grafana Image Renderer
+
+Grafana dashboard/panel의 PNG 이미지 렌더링을 위한 sidecar 서비스입니다.
+부하테스트 결과 스냅샷, 장애 리포트, 공유 링크(rendered image) 생성에 사용합니다.
+
+### 설정 위치
+
+| 설정 | 위치 | 설명 |
+|---|---|---|
+| `imageRenderer.enabled` | `values.yaml` → `kube-prometheus-stack.grafana.imageRenderer` | renderer Deployment/Service 활성화 |
+| `imageRenderer.image.tag` | `values.yaml` | renderer 이미지 버전 |
+| `imageRenderer.healthcheckPath` | `values.yaml` | liveness probe path |
+| `imageRenderer.resources` | `values.yaml` | CPU/memory 리소스 |
+| `imageRenderer.nodeSelector/tolerations` | `values-dev-eks.yaml` | EKS 노드 배치 설정 |
+| `GF_RENDERING_SERVER_URL` | chart 자동 생성 | imageRenderer.enabled: true 시 chart이 자동 주입 |
+| `GF_RENDERING_CALLBACK_URL` | chart 자동 생성 | imageRenderer.enabled: true 시 chart이 자동 주입 |
+
+### 주의사항
+
+1. **key 오타 금지**: `imageRenderer` (camelCase, 오타: `imageeRenderer` ❌)
+2. **`grafana.env`에 `GF_RENDERING_*` 수동 설정 금지**: `imageRenderer.enabled: true` 시 chart이 자동 생성합니다. 수동 설정 시 서비스명 불일치로 오작동할 수 있습니다.
+3. **callback_url에 `localhost` 금지**: chart 자동 생성값 `http://<grafana-svc>.<namespace>:<port>/`을 사용합니다.
+4. **healthcheckPath 버전 주의**:
+   - v3.0.x 이하: `/` 사용 (`/healthz` chart 기본값은 404 발생)
+   - v3.6.0+: `/render/version`
+   - v5.0.0+: `/healthz`
+   - 현재 사용: `tag: 3.11.6` + `healthcheckPath: /render/version`
+5. **memory limit 주의**: Chromium 기반이므로 512Mi 이하는 OOMKill 발생 가능. 현재 1Gi 설정.
+
+### 검증 명령
+
+```bash
+# renderer Deployment/Service/Pod 상태
+kubectl -n monitoring get deploy,svc,pod | grep -i renderer
+
+# renderer probe 정상 여부 (Liveness probe failed 없어야 함)
+kubectl -n monitoring describe pod $(kubectl -n monitoring get pod -l app.kubernetes.io/name=grafana-image-renderer -o name | head -1 | cut -d/ -f2)
+
+# renderer /render/version endpoint 직접 확인 (HTTP 200 기대)
+kubectl -n monitoring port-forward svc/safespot-observability-dev-grafana-image-renderer 18081:8081 &
+curl -i http://localhost:18081/render/version
+
+# renderer 로그 확인
+kubectl -n monitoring logs deploy/safespot-observability-dev-grafana-image-renderer --tail=100
+
+# Grafana 본체 GF_RENDERING_* env 확인 (두 항목 모두 있어야 함)
+kubectl -n monitoring exec deploy/safespot-observability-dev-grafana -- env | grep GF_RENDERING
+# 기대:
+# GF_RENDERING_SERVER_URL=http://safespot-observability-dev-grafana-image-renderer.monitoring:8081/render
+# GF_RENDERING_CALLBACK_URL=http://safespot-observability-dev-grafana.monitoring:80/
+# GF_RENDERING_RENDERER_TOKEN=...
+
+# Grafana UI에서 실제 렌더 테스트
+# Dashboard → Share → Direct link rendered image
+```
+
 ## Prometheus Adapter / HPA custom metric
 
 SafeSpot의 `api-public-read` 워크로드는 재난 상황에서 요청 수가 급증할 수 있으므로,
