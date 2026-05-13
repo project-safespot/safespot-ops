@@ -14,6 +14,18 @@ kube-prometheus-stack:
         label: grafana_dashboard
         labelValue: "1"
         searchNamespace: ALL
+    # image-renderer AUTH_TOKEN 비활성화를 위한 빈 토큰 Secret을 extraObjects로 주입합니다.
+    # existingSecret 설정 시 chart 자동 생성 Secret(랜덤 토큰)은 생성되지 않습니다.
+    # AUTH_TOKEN="" → renderer auth 비활성 → liveness probe httpGet /render/version → 200 OK
+    extraObjects:
+      - apiVersion: v1
+        kind: Secret
+        metadata:
+          name: grafana-image-renderer-no-auth
+          namespace: monitoring
+        type: Opaque
+        stringData:
+          token: ""
     imageRenderer:
       enabled: true
       replicas: 1
@@ -25,6 +37,9 @@ kube-prometheus-stack:
       # healthcheckPath: chart가 liveness probe httpGet.path에 사용하는 단일 설정값
       # v3.0.1 이하: "/" 사용 / v3.6.0+: "/render/version" 사용 / v5.0.0+: "/healthz" 사용
       healthcheckPath: /render/version
+      # existingSecret: 빈 토큰 Secret 지정 → AUTH_TOKEN="" → renderer auth 비활성
+      # chart 자동 Secret(랜덤 토큰) 생성 억제
+      existingSecret: "grafana-image-renderer-no-auth"
       service:
         enabled: true
         portName: http

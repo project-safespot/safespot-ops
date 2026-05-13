@@ -24,10 +24,12 @@ Grafana dashboard/panel의 PNG 이미지 렌더링을 위한 sidecar 서비스�
 | `imageRenderer.enabled` | `values.yaml` → `kube-prometheus-stack.grafana.imageRenderer` | renderer Deployment/Service 활성화 |
 | `imageRenderer.image.tag` | `values.yaml` | renderer 이미지 버전 |
 | `imageRenderer.healthcheckPath` | `values.yaml` | liveness probe path |
+| `imageRenderer.existingSecret` | `values.yaml` | AUTH_TOKEN을 읽을 Secret 이름 (미설정 시 chart가 랜덤 토큰 자동 생성) |
 | `imageRenderer.resources` | `values.yaml` | CPU/memory 리소스 |
 | `imageRenderer.nodeSelector/tolerations` | `values-dev-eks.yaml` | EKS 노드 배치 설정 |
 | `GF_RENDERING_SERVER_URL` | chart 자동 생성 | imageRenderer.enabled: true 시 chart이 자동 주입 |
 | `GF_RENDERING_CALLBACK_URL` | chart 자동 생성 | imageRenderer.enabled: true 시 chart이 자동 주입 |
+| `GF_RENDERING_RENDERER_TOKEN` | chart 자동 생성 | existingSecret.token 값으로 주입 (빈 문자열 → 토큰 없음) |
 
 ### 주의사항
 
@@ -40,6 +42,7 @@ Grafana dashboard/panel의 PNG 이미지 렌더링을 위한 sidecar 서비스�
    - v5.0.0+: `/healthz`
    - 현재 사용: `tag: 3.11.6` + `healthcheckPath: /render/version`
 5. **memory limit 주의**: Chromium 기반이므로 512Mi 이하는 OOMKill 발생 가능. 현재 1Gi 설정.
+6. **AUTH_TOKEN 401 probe 실패 대응**: chart가 `imageRenderer.service.enabled: true` 시 랜덤 `AUTH_TOKEN`을 자동 생성합니다. kubelet liveness probe는 인증 헤더를 보내지 않으므로 `/render/version`이 401을 반환해 probe 실패가 반복됩니다. 해결책: `extraObjects`로 `token: ""`인 Secret을 생성하고 `imageRenderer.existingSecret`으로 지정합니다. `AUTH_TOKEN=""` → renderer auth 비활성 → probe 200 OK. 현재 `values.yaml`에 `grafana-image-renderer-no-auth` Secret이 `extraObjects`로 주입됩니다.
 
 ### 검증 명령
 
@@ -50,19 +53,22 @@ kubectl -n monitoring get deploy,svc,pod | grep -i renderer
 # renderer probe 정상 여부 (Liveness probe failed 없어야 함)
 kubectl -n monitoring describe pod $(kubectl -n monitoring get pod -l app.kubernetes.io/name=grafana-image-renderer -o name | head -1 | cut -d/ -f2)
 
-# renderer /render/version endpoint 직접 확인 (HTTP 200 기대)
-kubectl -n monitoring port-forward svc/safespot-observability-dev-grafana-image-renderer 18081:8081 &
+# AUTH_TOKEN Secret 확인 (token 값이 비어있어야 함 — 빈 문자열 = auth 비활성)
+kubectl -n monitoring get secret grafana-image-renderer-no-auth -o jsonpath='{.data.token}' | base64 -d; echo
+
+# renderer /render/version endpoint 직접 확인 (인증 없이 HTTP 200 기대)
+kubectl -n monitoring port-forward svc/safespot-observability-grafana-image-renderer 18081:8081 &
 curl -i http://localhost:18081/render/version
 
-# renderer 로그 확인
-kubectl -n monitoring logs deploy/safespot-observability-dev-grafana-image-renderer --tail=100
+# renderer 로그 확인 (401 Unauthorized 없어야 함)
+kubectl -n monitoring logs deploy/safespot-observability-grafana-image-renderer --tail=100
 
-# Grafana 본체 GF_RENDERING_* env 확인 (두 항목 모두 있어야 함)
-kubectl -n monitoring exec deploy/safespot-observability-dev-grafana -- env | grep GF_RENDERING
+# Grafana 본체 GF_RENDERING_* env 확인 (세 항목 모두 있어야 함)
+kubectl -n monitoring exec deploy/safespot-observability-grafana -- env | grep GF_RENDERING
 # 기대:
-# GF_RENDERING_SERVER_URL=http://safespot-observability-dev-grafana-image-renderer.monitoring:8081/render
-# GF_RENDERING_CALLBACK_URL=http://safespot-observability-dev-grafana.monitoring:80/
-# GF_RENDERING_RENDERER_TOKEN=...
+# GF_RENDERING_SERVER_URL=http://safespot-observability-grafana-image-renderer.monitoring:8081/render
+# GF_RENDERING_CALLBACK_URL=http://safespot-observability-grafana.monitoring:80/
+# GF_RENDERING_RENDERER_TOKEN=   ← 빈 문자열 (auth 비활성 상태)
 
 # Grafana UI에서 실제 렌더 테스트
 # Dashboard → Share → Direct link rendered image
