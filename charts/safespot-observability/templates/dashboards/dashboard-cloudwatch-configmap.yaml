@@ -1,0 +1,285 @@
+{{- if .Values.safespot.dashboards.cloudwatchRaw.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-cloudwatch
+  namespace: {{ .Values.safespot.namespace.monitoring }}
+  labels:
+    grafana_dashboard: "1"
+    env: {{ .Values.safespot.env }}
+    region: {{ .Values.safespot.region }}
+data:
+  cloudwatch.json: |
+    {
+      "uid": "safespot-cloudwatch",
+      "title": "SafeSpot — AWS Metrics via YACE (RDS / SQS / Lambda)",
+      "tags": ["safespot", "cloudwatch", "yace", "prometheus", "aws", "infra"],
+      "timezone": "Asia/Seoul",
+      "refresh": "60s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        {
+          "id": 100,
+          "title": "── RDS Aurora ──",
+          "type": "text",
+          "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+          "options": { "mode": "markdown" }
+        },
+        {
+          "id": 1,
+          "title": "RDS CPU Utilization (%)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 1, "w": 8, "h": 6 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_rds_cpuutilization_average",
+              "legendFormat": "CPU %",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percent" } }
+        },
+        {
+          "id": 2,
+          "title": "RDS DB Connections",
+          "type": "timeseries",
+          "gridPos": { "x": 8, "y": 1, "w": 8, "h": 6 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_rds_database_connections_average",
+              "legendFormat": "connections",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "RDS Read / Write Latency (ms)",
+          "type": "timeseries",
+          "gridPos": { "x": 16, "y": 1, "w": 8, "h": 6 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_rds_read_latency_average * 1000",
+              "legendFormat": "read latency",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_rds_write_latency_average * 1000",
+              "legendFormat": "write latency",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ms" } }
+        },
+        {
+          "id": 4,
+          "title": "RDS Replica Lag (ms)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 7, "w": 12, "h": 5 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_rds_aurora_replica_lag_maximum",
+              "legendFormat": "replica lag",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ms" } }
+        },
+        {
+          "id": 5,
+          "title": "RDS Volume Bytes Used",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 7, "w": 12, "h": 5 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_rds_volume_bytes_used_average",
+              "legendFormat": "volume bytes used",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "id": 101,
+          "title": "── SQS ──",
+          "type": "text",
+          "gridPos": { "x": 0, "y": 12, "w": 24, "h": 1 },
+          "options": { "mode": "markdown" }
+        },
+        {
+          "id": 6,
+          "title": "SQS Visible Messages (Backlog)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 13, "w": 8, "h": 6 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name!~\".*[dD][lL][qQ].*\"}",
+              "legendFormat": "{{`{{ name }}`}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "SQS Oldest Message Age (초)",
+          "type": "timeseries",
+          "gridPos": { "x": 8, "y": 13, "w": 8, "h": 6 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name!~\".*[dD][lL][qQ].*\"}",
+              "legendFormat": "{{`{{ name }}`}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 8,
+          "title": "SQS Sent / Deleted",
+          "type": "timeseries",
+          "gridPos": { "x": 16, "y": 13, "w": 8, "h": 6 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_sqs_number_of_messages_sent_sum{name!~\".*[dD][lL][qQ].*\"}",
+              "legendFormat": "sent - {{`{{ name }}`}}",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_sqs_number_of_messages_deleted_sum{name!~\".*[dD][lL][qQ].*\"}",
+              "legendFormat": "deleted - {{`{{ name }}`}}",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "id": 102,
+          "title": "── DLQ ──",
+          "type": "text",
+          "gridPos": { "x": 0, "y": 19, "w": 24, "h": 1 },
+          "options": { "mode": "markdown" }
+        },
+        {
+          "id": 9,
+          "title": "DLQ Visible Messages",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 20, "w": 12, "h": 5 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name=~\".*cache.*refresh.*dlq.*|.*cache.*refresh.*DLQ.*|.*cache-refresh-dlq.*\"}",
+              "legendFormat": "cache-refresh-dlq",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name=~\".*readmodel.*refresh.*dlq.*|.*readmodel.*refresh.*DLQ.*|.*readmodel-refresh-dlq.*\"}",
+              "legendFormat": "readmodel-refresh-dlq",
+              "refId": "B"
+            },
+            {
+              "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name=~\".*environment.*cache.*refresh.*dlq.*|.*environment.*cache.*refresh.*DLQ.*|.*environment-cache-refresh-dlq.*\"}",
+              "legendFormat": "environment-cache-refresh-dlq",
+              "refId": "C"
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "title": "DLQ Oldest Message Age (초)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 20, "w": 12, "h": 5 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*cache.*refresh.*dlq.*|.*cache.*refresh.*DLQ.*|.*cache-refresh-dlq.*\"}",
+              "legendFormat": "cache-refresh-dlq",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*readmodel.*refresh.*dlq.*|.*readmodel.*refresh.*DLQ.*|.*readmodel-refresh-dlq.*\"}",
+              "legendFormat": "readmodel-refresh-dlq",
+              "refId": "B"
+            },
+            {
+              "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*environment.*cache.*refresh.*dlq.*|.*environment.*cache.*refresh.*DLQ.*|.*environment-cache-refresh-dlq.*\"}",
+              "legendFormat": "environment-cache-refresh-dlq",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 103,
+          "title": "── Lambda ──",
+          "type": "text",
+          "gridPos": { "x": 0, "y": 25, "w": 24, "h": 1 },
+          "options": { "mode": "markdown" }
+        },
+        {
+          "id": 11,
+          "title": "Lambda Invocations / Errors / Throttles",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 26, "w": 12, "h": 6 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_lambda_invocations_sum",
+              "legendFormat": "invocations - {{`{{ name }}`}}",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_lambda_errors_sum",
+              "legendFormat": "errors - {{`{{ name }}`}}",
+              "refId": "B"
+            },
+            {
+              "expr": "aws_lambda_throttles_sum",
+              "legendFormat": "throttles - {{`{{ name }}`}}",
+              "refId": "C"
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "title": "Lambda Duration Average / Max (ms)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 26, "w": 12, "h": 6 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_lambda_duration_average",
+              "legendFormat": "avg duration - {{`{{ name }}`}}",
+              "refId": "A"
+            },
+            {
+              "expr": "aws_lambda_duration_maximum",
+              "legendFormat": "max duration - {{`{{ name }}`}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ms" } }
+        },
+        {
+          "id": 13,
+          "title": "Lambda ConcurrentExecutions",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 32, "w": 12, "h": 5 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "aws_lambda_concurrent_executions_maximum",
+              "legendFormat": "concurrent - {{`{{ name }}`}}",
+              "refId": "A"
+            }
+          ]
+        }
+      ]
+    }
+{{- end }}

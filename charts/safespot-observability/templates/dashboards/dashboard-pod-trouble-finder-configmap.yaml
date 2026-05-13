@@ -1,0 +1,172 @@
+{{- if .Values.safespot.dashboards.podTroubleFinder.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-pod-trouble-finder
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+    env: dev
+    region: ap-northeast-2
+data:
+  pod-trouble-finder.json: |
+    {{- `
+    {
+      "title": "SafeSpot - Pod Trouble Finder",
+      "uid": "safespot-pod-trouble-finder",
+      "tags": ["safespot", "pod", "troubleshooting"],
+      "timezone": "Asia/Seoul",
+      "schemaVersion": 36,
+      "version": 1,
+      "refresh": "10s",
+      "time": { "from": "now-30m", "to": "now" },
+      "editable": true,
+      "graphTooltip": 1,
+      "templating": {
+        "list": [
+          {
+            "name": "namespace",
+            "type": "constant",
+            "query": "application"
+          },
+          {
+            "name": "pod",
+            "type": "query",
+            "datasource": "Prometheus",
+            "query": "label_values(kube_pod_info{namespace=\"$namespace\"}, pod)",
+            "refresh": 2,
+            "multi": true,
+            "includeAll": true
+          }
+        ]
+      },
+      "annotations": { "list": [] },
+      "panels": [
+        {
+          "id": 1,
+          "type": "row",
+          "title": "Pod Trouble Finder",
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "panels": []
+        },
+        {
+          "id": 2,
+          "title": "Not Ready Pods",
+          "type": "table",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 1 },
+          "targets": [
+            {
+              "expr": "kube_pod_status_ready{namespace=\"$namespace\",condition=\"false\",pod=~\"$pod\"} == 1",
+              "legendFormat": "{{pod}}",
+              "format": "table",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+          "options": { "showHeader": true }
+        },
+        {
+          "id": 3,
+          "title": "Restart Increase by Pod",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 1 },
+          "targets": [
+            {
+              "expr": "sum by (pod, container) (increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\",pod=~\"$pod\"}[10m]))",
+              "legendFormat": "{{pod}} / {{container}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 4,
+          "title": "CPU Usage by Pod",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",pod=~\"$pod\",container!=\"\",image!=\"\"}[1m]))",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "cores", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 5,
+          "title": "Memory Working Set by Pod",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"$namespace\",pod=~\"$pod\",container!=\"\",image!=\"\"})",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "lineInterpolation": "linear", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 6,
+          "title": "Pending Pods",
+          "type": "table",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 16 },
+          "targets": [
+            {
+              "expr": "kube_pod_status_phase{namespace=\"$namespace\",phase=\"Pending\",pod=~\"$pod\"} == 1",
+              "legendFormat": "{{pod}}",
+              "format": "table",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+          "options": { "showHeader": true }
+        },
+        {
+          "id": 7,
+          "title": "OOMKilled Waiting Reason",
+          "type": "table",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 16 },
+          "targets": [
+            {
+              "expr": "kube_pod_container_status_last_terminated_reason{namespace=\"$namespace\",reason=\"OOMKilled\",pod=~\"$pod\"} == 1",
+              "legendFormat": "{{pod}} / {{container}}",
+              "format": "table",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+          "options": { "showHeader": true }
+        },
+        {
+          "id": 8,
+          "title": "Container Waiting Reasons",
+          "type": "table",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 16 },
+          "targets": [
+            {
+              "expr": "kube_pod_container_status_waiting_reason{namespace=\"$namespace\",pod=~\"$pod\"} == 1",
+              "legendFormat": "{{pod}} / {{container}} / {{reason}}",
+              "format": "table",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+          "options": { "showHeader": true }
+        }
+      ]
+    }
+    ` | nindent 4 }}
+{{- end }}

@@ -2,21 +2,21 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: api-core
-  namespace: monitoring
+  namespace: {{ .Values.safespot.namespace.monitoring }}
   labels:
     release: kube-prometheus-stack
     app: api-core
-    env: dev
-    region: ap-northeast-2
+    env: {{ .Values.safespot.env }}
+    region: {{ .Values.safespot.region }}
 spec:
   selector:
     matchLabels:
       app: api-core
-      env: dev
+      env: {{ .Values.safespot.env }}
   namespaceSelector:
     matchNames:
-      - application
+      - {{ .Values.safespot.namespace.application }}
   endpoints:
-    - targetPort: 8080
-      path: /actuator/prometheus
-      interval: 15s
+    - port: {{ .Values.safespot.metrics.apiCore.port }}
+      path: {{ .Values.safespot.metrics.apiCore.path }}
+      interval: {{ .Values.safespot.metrics.apiCore.interval }}

@@ -1,0 +1,216 @@
+{{- if .Values.safespot.dashboards.eks.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-eks
+  namespace: {{ .Values.safespot.namespace.monitoring }}
+  labels:
+    grafana_dashboard: "1"
+    env: {{ .Values.safespot.env }}
+    region: {{ .Values.safespot.region }}
+data:
+  eks.json: |
+    {
+      "uid": "safespot-eks",
+      "title": "SafeSpot — EKS Infrastructure",
+      "tags": ["safespot", "eks", "kubernetes", "infra"],
+      "timezone": "Asia/Seoul",
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Node CPU Usage (%)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [{
+            "expr": "100 - (avg by (node) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+            "legendFormat": "node {{ "{{node}}" }} cpu"
+          }],
+          "fieldConfig": { "defaults": { "unit": "percent" } }
+        },
+        {
+          "id": 2,
+          "title": "Node Memory Usage (%)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [{
+            "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+            "legendFormat": "node {{ "{{instance}}" }} memory"
+          }],
+          "fieldConfig": { "defaults": { "unit": "percent" } }
+        },
+        {
+          "id": 3,
+          "title": "Pod CPU Usage",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 6, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [{
+            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\"}[5m])) by (pod)",
+            "legendFormat": "pod {{ "{{pod}}" }} cpu"
+          }],
+          "fieldConfig": { "defaults": { "unit": "cores" } }
+        },
+        {
+          "id": 4,
+          "title": "Pod Memory Usage",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 6, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [{
+            "expr": "sum(container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\"}) by (pod)",
+            "legendFormat": "pod {{ "{{pod}}" }} memory"
+          }],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "id": 5,
+          "title": "Pod Restart 수 (최근 1h)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 12, "w": 12, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [{
+            "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"{{ .Values.safespot.namespace.application }}\"}[1h])",
+            "legendFormat": "pod {{ "{{pod}}" }} / container {{ "{{container}}" }} restarts"
+          }]
+        },
+        {
+          "id": 6,
+          "title": "HPA 현황 (desired / current / max)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 12, "w": 12, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"{{ .Values.safespot.namespace.application }}\"}",
+              "legendFormat": "hpa {{ "{{horizontalpodautoscaler}}" }} desired"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"{{ .Values.safespot.namespace.application }}\"}",
+              "legendFormat": "hpa {{ "{{horizontalpodautoscaler}}" }} current"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"{{ .Values.safespot.namespace.application }}\"}",
+              "legendFormat": "hpa {{ "{{horizontalpodautoscaler}}" }} max"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "title": "Running / Pending / Failed Pods",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 17, "w": 12, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(kube_pod_status_phase{namespace=\"{{ .Values.safespot.namespace.application }}\",phase=\"Running\"} == 1) or vector(0)",
+              "legendFormat": "application pods running"
+            },
+            {
+              "expr": "sum(kube_pod_status_phase{namespace=\"{{ .Values.safespot.namespace.application }}\",phase=\"Pending\"} == 1) or vector(0)",
+              "legendFormat": "application pods pending"
+            },
+            {
+              "expr": "sum(kube_pod_status_phase{namespace=\"{{ .Values.safespot.namespace.application }}\",phase=\"Failed\"} == 1) or vector(0)",
+              "legendFormat": "application pods failed"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "title": "Node Disk I/O (bytes/sec)",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 17, "w": 12, "h": 4 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            { "expr": "sum(rate(node_disk_read_bytes_total[5m]))", "legendFormat": "cluster disk read bytes/sec" },
+            { "expr": "sum(rate(node_disk_written_bytes_total[5m]))", "legendFormat": "cluster disk write bytes/sec" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "id": 9,
+          "title": "Pod HTTP Latency p95 / p99",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 21, "w": 24, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\", pod!=\"\", uri!=\"UNKNOWN\"}[5m])) by (le, pod))",
+              "legendFormat": "pod {{ "{{pod}}" }} p95 latency"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\", pod!=\"\", uri!=\"UNKNOWN\"}[5m])) by (le, pod))",
+              "legendFormat": "pod {{ "{{pod}}" }} p99 latency"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 3
+            }
+          }
+        },
+        {
+          "id": 10,
+          "title": "Application Pods by Node",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 27, "w": 8, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "count by (node) (kube_pod_info{namespace=\"{{ .Values.safespot.namespace.application }}\"})",
+              "legendFormat": "node {{ "{{node}}" }} pod count"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0
+            }
+          }
+        },
+        {
+          "id": 11,
+          "title": "Application Pod CPU by Node",
+          "type": "timeseries",
+          "gridPos": { "x": 8, "y": 27, "w": 8, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (node) (sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\",pod!=\"\"}[5m])) * on (namespace, pod) group_left(node) kube_pod_info{namespace=\"{{ .Values.safespot.namespace.application }}\"})",
+              "legendFormat": "node {{ "{{node}}" }} application cpu"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cores",
+              "decimals": 3
+            }
+          }
+        },
+        {
+          "id": 12,
+          "title": "Application Pod Memory by Node",
+          "type": "timeseries",
+          "gridPos": { "x": 16, "y": 27, "w": 8, "h": 5 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (node) (sum by (namespace, pod) (container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container!=\"\",pod!=\"\"}) * on (namespace, pod) group_left(node) kube_pod_info{namespace=\"{{ .Values.safespot.namespace.application }}\"})",
+              "legendFormat": "node {{ "{{node}}" }} application memory"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "decimals": 2
+            }
+          }
+        }
+      ]
+    }
+{{- end }}

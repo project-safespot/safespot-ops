@@ -1,0 +1,18 @@
+dependencies:
+- name: kube-prometheus-stack
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 84.0.0
+- name: prometheus-redis-exporter
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 6.23.0
+- name: yet-another-cloudwatch-exporter
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 0.39.1
+- name: prometheus-adapter
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 5.2.0
+- name: fluent-bit
+  repository: https://fluent.github.io/helm-charts
+  version: 0.50.0
+digest: sha256:a52437de94bf4cb88d1125dc7cc935234c579e6eaef9067570909aa97e375116
+generated: "2026-05-12T10:31:08.545139204+09:00"

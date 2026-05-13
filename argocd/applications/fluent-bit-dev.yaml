@@ -1,0 +1,64 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fluent-bit-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://fluent.github.io/helm-charts
+    chart: fluent-bit
+    targetRevision: 0.47.9
+    helm:
+      values: |
+        serviceAccount:
+          create: true
+          name: fluent-bit
+          annotations:
+            # Terraform: terraform/environments/dev/ops
+            # enable_fluentbit_irsa = true 적용 후 ops apply 완료된 ARN으로 교체
+            eks.amazonaws.com/role-arn: "arn:aws:iam::154335823230:role/safespot-dev-fluentbit-irsa"
+        config:
+          outputs: |
+            [OUTPUT]
+                Name              cloudwatch_logs
+                Match             kube.*
+                region            ap-northeast-2
+                log_group_name    /safespot/dev/eks/application
+                log_stream_prefix from-fluent-bit-
+                auto_create_group false
+
+          filters: |
+            [FILTER]
+                Name                kubernetes
+                Match               kube.*
+                Kube_URL            https://kubernetes.default.svc:443
+                Kube_CA_File        /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                Kube_Token_File     /var/run/secrets/kubernetes.io/serviceaccount/token
+                Merge_Log           On
+                Keep_Log            Off
+                K8S-Logging.Parser  On
+                K8S-Logging.Exclude Off
+
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+
+        tolerations:
+          - operator: Exists
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: logging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

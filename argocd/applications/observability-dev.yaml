@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: safespot-observability-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/project-safespot/safespot-ops.git
+    targetRevision: prometheus-stack-for-aws
+    path: charts/safespot-observability
+    helm:
+      valueFiles:
+        - values-dev-eks.yaml
+        - values-dev.infra.generated.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+  # kube-prometheus-stack webhook caBundle은 cert-manager 또는 operator가 주입하므로
+  # ArgoCD diff에서 제외하여 OutOfSync 루프를 방지합니다.
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle

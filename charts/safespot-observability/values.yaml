@@ -1,11 +1,10 @@
 # SafeSpot Observability - values.yaml
-# kube-prometheus-stack override 설정
+# 공통 기본값. 환경별 오버라이드는 values-local.yaml / values-dev-eks.yaml 사용.
 
 kube-prometheus-stack:
   grafana:
-    adminPassword: admin1234
     service:
-      type: LoadBalancer
+      type: ClusterIP
     sidecar:
       dashboards:
         enabled: true
@@ -15,7 +14,7 @@ kube-prometheus-stack:
 
   prometheus:
     service:
-      type: LoadBalancer
+      type: ClusterIP
     prometheusSpec:
       serviceMonitorSelectorNilUsesHelmValues: false
       podMonitorSelectorNilUsesHelmValues: false
@@ -23,15 +22,8 @@ kube-prometheus-stack:
       podMonitorNamespaceSelector: {}
 
   alertmanager:
-    alertmanagerSpec:
-      storage:
-        volumeClaimTemplate:
-          spec:
-            storageClassName: local-path
-            accessModes: ["ReadWriteOnce"]
-            resources:
-              requests:
-                storage: 2Gi
+    service:
+      type: ClusterIP
 
 # SafeSpot 공통 설정
 safespot:
@@ -40,3 +32,169 @@ safespot:
   namespace:
     application: application
     monitoring: monitoring
+  metrics:
+    apiCore:
+      path: /actuator/prometheus
+      port: http
+      interval: 15s
+    apiPublicRead:
+      path: /actuator/prometheus
+      port: http
+      interval: 15s
+    externalIngestion:
+      path: /actuator/prometheus
+      port: http
+      interval: 15s
+    asyncWorker:
+      path: /actuator/prometheus
+      port: http
+      interval: 15s
+  # ExternalSecret으로 Grafana admin credential을 SSM에서 동기화
+  # external-secrets operator가 설치된 경우 enabled: true로 설정
+  externalSecrets:
+    grafanaAdmin:
+      enabled: false
+      secretStoreRef:
+        name: ssm-parameter-store
+        kind: ClusterSecretStore
+      targetSecretName: grafana-admin-credentials
+      userKey: admin-user
+      passwordKey: admin-password
+      # 환경별 SSM 경로는 values-dev-eks.yaml 등 환경 values에서 지정
+      adminUserParameter: ""
+      adminPasswordParameter: ""
+      refreshInterval: "1h"
+
+  # Dashboard enable/disable flags
+  dashboards:
+    redis:
+      enabled: true
+    eks:
+      enabled: true
+    apiHttp:
+      enabled: true
+    cloudwatchRaw:
+      enabled: false
+    systemOverview:
+      enabled: false
+    apiCustom:
+      enabled: false
+    appOverview:
+      enabled: false
+    jvmGc:
+      enabled: false
+    worker:
+      enabled: false
+    ingestion:
+      enabled: false
+    loadtest:
+      enabled: false
+
+  # PrometheusRule enable/disable flags
+  prometheusRules:
+    redis:
+      enabled: true
+    apiHttp:
+      enabled: true
+    eks:
+      enabled: true
+    apiCustom:
+      enabled: false
+    worker:
+      enabled: false
+    ingestion:
+      enabled: false
+
+  # API HTTP 메트릭 PromQL 필터
+  api:
+    servicesFilter: "api-core|api-public-read"
+
+  # AWS 리소스 식별자 (기본값 빈 문자열)
+  # values-dev.infra.generated.yaml 에서 실제 값으로 오버라이드됩니다.
+  aws:
+    rds:
+      dbClusterIdentifier: ""
+    elasticache:
+      replicationGroupId: ""
+    sqs:
+      eventQueueName: ""
+      cacheRefreshQueueName: ""
+      readmodelRefreshQueueName: ""
+      environmentCacheRefreshQueueName: ""
+      cacheRefreshDlqName: ""
+      readmodelRefreshDlqName: ""
+      environmentCacheRefreshDlqName: ""
+    lambda:
+      asyncWorkerFunctionName: ""
+    alb:
+      loadBalancerDimension: ""
+
+# Alert 임계값
+alerts:
+  redis:
+    memoryUsageMax: "0.85"
+    evictionRateMax: "0"
+  api:
+    errorRateThresholdPercent: "5"
+    latencyP95ThresholdSeconds: "2.0"
+
+# prometheus-adapter subchart (alias: prometheus-adapter)
+# condition: prometheus-adapter.enabled — 기본 비활성. 환경별 values에서 활성화.
+prometheus-adapter:
+  enabled: false
+
+# prometheus-redis-exporter subchart (alias: redis-exporter)
+# condition: redis-exporter.enabled — 기본 비활성. 환경별 values에서 활성화.
+redis-exporter:
+  enabled: false
+  serviceAccount:
+    create: true
+  # TODO: EKS dev ElastiCache Redis primary endpoint 확인 후 설정
+  redisAddress: "redis://TODO_FILL_IN_ELASTICACHE_PRIMARY_ENDPOINT:6379"
+  # TODO: Terraform 기준 transit_encryption_enabled=false 확인됨.
+  # Redis AUTH 사용 여부 확인 필요. AUTH가 없으면 아래 env 블록 불필요.
+  # env:
+  #   - name: REDIS_PASSWORD
+  #     valueFrom:
+  #       secretKeyRef:
+  #         name: redis-auth
+  #         key: password
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# yet-another-cloudwatch-exporter subchart (alias: yace)
+# condition: yace.enabled — 기본 비활성. 환경별 values에서 활성화.
+yace:
+  enabled: false
+  serviceAccount:
+    create: true
+    name: "safespot-yace"
+    annotations: {}
+  serviceMonitor:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  testConnection: false
+
+# 수동 Redis ServiceMonitor (templates/servicemonitors/servicemonitor-redis-exporter.yaml)
+# redisExporter.serviceMonitor.enabled=true 사용 시 false 유지하여 중복 방지
+redisExporterExternalServiceMonitor:
+  enabled: false
+
+# fluent-bit subchart
+# EKS Pod stdout 로그를 CloudWatch Logs로 전송
+fluent-bit:
+  enabled: false

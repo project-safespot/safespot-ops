@@ -1,0 +1,69 @@
+{{- if .Values.safespot.prometheusRules.apiHttp.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: safespot-api-http
+  namespace: {{ .Values.safespot.namespace.monitoring }}
+  labels:
+    release: kube-prometheus-stack
+    env: {{ .Values.safespot.env }}
+    region: {{ .Values.safespot.region }}
+spec:
+  groups:
+    - name: safespot.api.http
+      interval: 30s
+      rules:
+
+        - alert: ApiErrorRateHigh
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{
+                service=~"{{ .Values.safespot.api.servicesFilter }}",
+                status=~"5.."
+              }[5m]))
+            /
+              sum(rate(http_server_requests_seconds_count{
+                service=~"{{ .Values.safespot.api.servicesFilter }}"
+              }[5m]))
+            ) * 100
+            > {{ .Values.alerts.api.errorRateThresholdPercent }}
+          for: 2m
+          labels:
+            severity: critical
+            env: {{ .Values.safespot.env }}
+          annotations:
+            summary: "API 5xx 에러율 초과"
+            description: |
+              5xx rate = {{ "{{$value | printf \"%.2f\"}}" }}% (임계값: {{ .Values.alerts.api.errorRateThresholdPercent }}%)
+
+        - alert: ApiCoreLatencyHigh
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_server_requests_seconds_bucket{service="api-core"}[5m])) by (le, uri)
+            ) > {{ .Values.alerts.api.latencyP95ThresholdSeconds }}
+          for: 2m
+          labels:
+            severity: warning
+            service: api-core
+            env: {{ .Values.safespot.env }}
+          annotations:
+            summary: "api-core p95 latency 초과 ({{ "{{$labels.uri}}" }})"
+            description: "{{ "{{$labels.uri}}" }} p95 = {{ "{{$value | humanizeDuration}}" }}"
+
+        - alert: ApiPublicReadLatencyHigh
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_server_requests_seconds_bucket{
+                service="api-public-read",
+                uri=~"/shelters/nearby|/disaster-alerts|/disasters.*"
+              }[5m])) by (le, uri)
+            ) > {{ .Values.alerts.api.latencyP95ThresholdSeconds }}
+          for: 2m
+          labels:
+            severity: warning
+            service: api-public-read
+            env: {{ .Values.safespot.env }}
+          annotations:
+            summary: "api-public-read p95 latency 초과 ({{ "{{$labels.uri}}" }})"
+            description: "{{ "{{$labels.uri}}" }} p95 = {{ "{{$value | humanizeDuration}}" }}"
+{{- end }}

@@ -1,0 +1,113 @@
+# values-dev.infra.template.yaml
+# SSM Parameter Store에서 읽은 인프라 식별자를 치환하기 위한 envsubst 호환 템플릿.
+#
+# 이 파일은 직접 사용하지 마세요.
+# 반드시 scripts/render-dev-values.sh를 사용하세요 (SSM 검증 + 필수값 fail-fast 포함).
+#
+# 수동 치환이 필요한 경우 (envsubst):
+#   필수:
+#     export REDIS_PRIMARY_ENDPOINT=...
+#     export REDIS_PORT=6379
+#     export YACE_IRSA_ROLE_ARN=...
+#     export CACHE_REFRESH_QUEUE_NAME=...
+#     export READMODEL_REFRESH_QUEUE_NAME=...
+#     export ENVIRONMENT_CACHE_REFRESH_QUEUE_NAME=...
+#     export EVENT_QUEUE_NAME=...
+#   선택:
+#     export FLUENT_BIT_IRSA_ROLE_ARN=...
+#     export GRAFANA_IRSA_ROLE_ARN=...
+#     export RDS_CLUSTER_IDENTIFIER=...
+#     export REDIS_REPLICATION_GROUP_ID=...
+#     export LAMBDA_FUNCTION_NAME=...
+#     export ALB_ARN_SUFFIX=...
+#   envsubst < values-dev.infra.template.yaml > values-dev.infra.generated.yaml
+#
+# Helm values override 순서:
+#   1. values-dev-eks.yaml            (구조, EKS 설정, 비밀 아닌 기본값)
+#   2. values-dev.infra.generated.yaml (SSM에서 읽은 인프라 식별자)
+
+# ---------------------------------------------------------------------------
+# Required
+# ---------------------------------------------------------------------------
+
+redis-exporter:
+  # SSM: /${PROJECT}/${ENVIRONMENT}/data/redis-primary-endpoint
+  # SSM: /${PROJECT}/${ENVIRONMENT}/data/redis-port
+  redisAddress: "redis://${REDIS_PRIMARY_ENDPOINT}:${REDIS_PORT}"
+
+yace:
+  serviceAccount:
+    annotations:
+      # SSM: /${PROJECT}/${ENVIRONMENT}/observability/yace/irsa-role-arn
+      # 형식: arn:aws:iam::<account-id>:role/<role-name>
+      # Terraform trust policy subject: system:serviceaccount:monitoring:safespot-yace
+      eks.amazonaws.com/role-arn: "${YACE_IRSA_ROLE_ARN}"
+
+# ---------------------------------------------------------------------------
+# Optional: fluent-bit IRSA
+# FLUENT_BIT_IRSA_ROLE_ARN이 없으면 scripts/render-dev-values.sh가 이 섹션을 생략합니다.
+# ---------------------------------------------------------------------------
+
+fluent-bit:
+  serviceAccount:
+    annotations:
+      # SSM: /${PROJECT}/${ENVIRONMENT}/observability/fluent-bit/irsa-role-arn
+      # 형식: arn:aws:iam::<account-id>:role/<role-name>
+      # Terraform trust policy subject: system:serviceaccount:monitoring:safespot-fluent-bit
+      eks.amazonaws.com/role-arn: "${FLUENT_BIT_IRSA_ROLE_ARN}"
+
+# ---------------------------------------------------------------------------
+# Optional: Grafana IRSA
+# GRAFANA_IRSA_ROLE_ARN이 없으면 scripts/render-dev-values.sh가 이 섹션을 생략합니다.
+# ---------------------------------------------------------------------------
+
+kube-prometheus-stack:
+  grafana:
+    serviceAccount:
+      annotations:
+        # SSM: /${PROJECT}/${ENVIRONMENT}/observability/grafana/irsa-role-arn
+        # 형식: arn:aws:iam::<account-id>:role/<role-name>
+        # Terraform trust policy subject: system:serviceaccount:monitoring:safespot-grafana
+        eks.amazonaws.com/role-arn: "${GRAFANA_IRSA_ROLE_ARN}"
+
+  prometheus:
+    serviceAccount:
+      # SSM: /${PROJECT}/${ENVIRONMENT}/observability/prometheus/irsa-role-arn
+      # 형식: arn:aws:iam::<account-id>:role/<role-name>
+      # Terraform trust policy subject: system:serviceaccount:monitoring:prometheus
+      annotations:
+        eks.amazonaws.com/role-arn: "${PROMETHEUS_IRSA_ROLE_ARN}"
+
+# ---------------------------------------------------------------------------
+# AWS resource identifiers (for CloudWatch dashboard dimensions)
+# Required: sqs.* (queue URL → basename), others: optional
+# 값이 비어 있으면 CloudWatch 패널에 데이터가 표시되지 않습니다.
+# ---------------------------------------------------------------------------
+
+safespot:
+  aws:
+    rds:
+      # SSM: /${PROJECT}/${ENVIRONMENT}/data/aurora-cluster-identifier (optional)
+      dbClusterIdentifier: "${RDS_CLUSTER_IDENTIFIER}"
+    elasticache:
+      # SSM: /${PROJECT}/${ENVIRONMENT}/data/redis-replication-group-id (optional)
+      replicationGroupId: "${REDIS_REPLICATION_GROUP_ID}"
+    sqs:
+      # SSM: /${PROJECT}/${ENVIRONMENT}/async-worker/event-queue-url → basename
+      eventQueueName: "${EVENT_QUEUE_NAME}"
+      # SSM: /${PROJECT}/${ENVIRONMENT}/async-worker/cache-refresh-queue-url → basename
+      cacheRefreshQueueName: "${CACHE_REFRESH_QUEUE_NAME}"
+      # SSM: /${PROJECT}/${ENVIRONMENT}/async-worker/readmodel-refresh-queue-url → basename
+      readmodelRefreshQueueName: "${READMODEL_REFRESH_QUEUE_NAME}"
+      # SSM: /${PROJECT}/${ENVIRONMENT}/async-worker/environment-cache-refresh-queue-url → basename
+      environmentCacheRefreshQueueName: "${ENVIRONMENT_CACHE_REFRESH_QUEUE_NAME}"
+      # DLQ names: *-dlq-name parameter preferred; falls back to basename of *-dlq-url
+      cacheRefreshDlqName: "${CACHE_REFRESH_DLQ_NAME}"
+      readmodelRefreshDlqName: "${READMODEL_REFRESH_DLQ_NAME}"
+      environmentCacheRefreshDlqName: "${ENVIRONMENT_CACHE_REFRESH_DLQ_NAME}"
+    lambda:
+      # SSM: /${PROJECT}/${ENVIRONMENT}/async-worker/lambda-function-name (optional)
+      asyncWorkerFunctionName: "${LAMBDA_FUNCTION_NAME}"
+    alb:
+      # SSM: /${PROJECT}/${ENVIRONMENT}/front-edge/alb-arn-suffix (optional)
+      loadBalancerDimension: "${ALB_ARN_SUFFIX}"
