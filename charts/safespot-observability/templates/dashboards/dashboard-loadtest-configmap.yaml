@@ -499,10 +499,134 @@ data:
           ]
         },
         {
+          "id": 23,
+          "title": "Tail Spike - Tomcat Threads",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 68, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Use {__name__=~\"tomcat_threads_.*\", namespace=\"application\"} if a panel shows No data.",
+          "targets": [
+            {
+              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "busy {{`{{pod}}`}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (pod) (tomcat_threads_current_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "current {{`{{pod}}`}}",
+              "refId": "B"
+            },
+            {
+              "expr": "sum by (pod) (tomcat_threads_config_max_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "max {{`{{pod}}`}}",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        },
+        {
+          "id": 24,
+          "title": "Tail Spike - Tomcat Busy Ratio",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 68, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"application\",service=~\"api-public-read|api-core\"}) / sum by (pod) (tomcat_threads_config_max_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "{{`{{pod}}`}} busy ratio",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+        },
+        {
+          "id": 25,
+          "title": "Tail Spike - Hikari Connections",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 74, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Pending 0 should render as 0. No data means metric/scrape/query mismatch.",
+          "targets": [
+            {
+              "expr": "sum by (pod) (hikaricp_connections_pending{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "pending {{`{{pod}}`}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (pod) (hikaricp_connections_active{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "active {{`{{pod}}`}}",
+              "refId": "B"
+            },
+            {
+              "expr": "sum by (pod) (hikaricp_connections_max{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "max {{`{{pod}}`}}",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        },
+        {
+          "id": 26,
+          "title": "Tail Spike - Hikari Pool Usage %",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 74, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (pod) (hikaricp_connections_active{namespace=\"application\",service=~\"api-public-read|api-core\"}) / sum by (pod) (hikaricp_connections_max{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "{{`{{pod}}`}} pool usage",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+        },
+        {
+          "id": 27,
+          "title": "Tail Spike - JVM GC Pause",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 80, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Uses count/sum/max. jvm_gc_pause_seconds_bucket is not expected unless the application enables GC pause histograms.",
+          "targets": [
+            {
+              "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_count{namespace=\"application\",service=~\"api-public-read|api-core\"}[1m]))",
+              "legendFormat": "count {{`{{pod}}`}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_sum{namespace=\"application\",service=~\"api-public-read|api-core\"}[1m])) / sum by (pod) (rate(jvm_gc_pause_seconds_count{namespace=\"application\",service=~\"api-public-read|api-core\"}[1m]))",
+              "legendFormat": "avg {{`{{pod}}`}}",
+              "refId": "B"
+            },
+            {
+              "expr": "max by (pod) (jvm_gc_pause_seconds_max{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "legendFormat": "max {{`{{pod}}`}}",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 } }
+        },
+        {
+          "id": 28,
+          "title": "Tail Spike - CPU Throttling Ratio by Pod",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 80, "w": 12, "h": 6 },
+          "datasource": { "uid": "prometheus" },
+          "description": "Pod-level query avoids node label mismatch on container_cpu_cfs_* metrics.",
+          "targets": [
+            {
+              "expr": "sum by (pod) (rate(container_cpu_cfs_throttled_periods_total{namespace=\"application\",pod=~\"api-core.*|api-public-read.*|api-public-read-surge.*\",container!=\"\",image!=\"\"}[1m])) / sum by (pod) (rate(container_cpu_cfs_periods_total{namespace=\"application\",pod=~\"api-core.*|api-public-read.*|api-public-read-surge.*\",container!=\"\",image!=\"\"}[1m]))",
+              "legendFormat": "{{`{{pod}}`}} throttle ratio",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+        },
+        {
           "id": 104,
           "title": "── Result Guide ──",
           "type": "text",
-          "gridPos": { "x": 0, "y": 68, "w": 24, "h": 4 },
+          "gridPos": { "x": 0, "y": 86, "w": 24, "h": 4 },
           "options": {
             "mode": "markdown",
             "content": "## 판단 기준\n\n### Smoke\n- 에러율 0%\n- 핵심 API 정상 응답\n\n### TPS 1,000\n- 에러율 1% 이하\n- p95 latency 목표치 유지\n- Pod CPU/Memory, Redis, RDS 안정\n\n### Stress TPS 5,000\n- 먼저 한계에 도달하는 자원 확인\n- RDS CPU/Connections/Latency 급등 여부\n- Redis eviction/rejected connection 발생 여부\n- HPA desired replica 증가 및 max 도달 여부\n- Pod restart 발생 여부"

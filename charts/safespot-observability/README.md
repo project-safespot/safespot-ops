@@ -109,6 +109,24 @@ kubectl -n monitoring port-forward svc/safespot-observability-kube-prometheus 90
 
 ## EKS dev 배포 절차
 
+### EKS values 파일 적용 주의
+
+EKS 배포에서는 반드시 `values-dev-eks.yaml`을 포함해야 합니다.
+
+이 파일이 빠지면 api-core와 api-public-read ServiceMonitor scrape path가 기본값인 `/actuator/prometheus`로 남습니다. 두 서비스는 application context-path를 사용하므로 기본 path는 실제 actuator endpoint와 일치하지 않습니다.
+
+기대 scrape path:
+
+- api-core: `/api/core/actuator/prometheus`
+- api-public-read: `/api/public/actuator/prometheus`
+- external-ingestion: `/actuator/prometheus`
+
+Tomcat metric 이름 확인용 탐색 쿼리:
+
+```promql
+{__name__=~"tomcat_threads_.*", namespace="application"}
+```
+
 ### 1. 인프라 values 생성
 
 SSM Parameter Store에서 인프라 식별자를 읽어 generated values를 생성합니다.

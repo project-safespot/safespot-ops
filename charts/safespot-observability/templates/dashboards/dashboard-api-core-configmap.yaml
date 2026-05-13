@@ -388,7 +388,7 @@ data:
           "description": "Warning: >20% throttled",
           "targets": [
             {
-              "expr": "sum by (pod, container) (rate(container_cpu_cfs_throttled_periods_total{namespace=\"{{ .Values.safespot.namespace.application }}\",container=\"api-core\"}[5m])) / sum by (pod, container) (rate(container_cpu_cfs_periods_total{namespace=\"{{ .Values.safespot.namespace.application }}\",container=\"api-core\"}[5m]))",
+              "expr": "sum by (pod) (rate(container_cpu_cfs_throttled_periods_total{namespace=\"{{ .Values.safespot.namespace.application }}\",pod=~\"api-core.*\",container!=\"\",image!=\"\"}[1m])) / sum by (pod) (rate(container_cpu_cfs_periods_total{namespace=\"{{ .Values.safespot.namespace.application }}\",pod=~\"api-core.*\",container!=\"\",image!=\"\"}[1m]))",
               "legendFormat": "{{ "{{pod}}" }} throttle ratio"
             }
           ],
@@ -443,7 +443,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "tomcat_threads_busy_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"}",
+              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"})",
               "legendFormat": "{{ "{{pod}}" }} tomcat busy"
             }
           ],
@@ -457,7 +457,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "tomcat_threads_busy_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"} / tomcat_threads_config_max_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"}",
+              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"}) / sum by (pod) (tomcat_threads_config_max_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"})",
               "legendFormat": "{{ "{{pod}}" }} busy ratio"
             }
           ],
@@ -470,22 +470,50 @@ data:
           }
         },
         {
+          "id": 46,
+          "title": "Tomcat Current Threads",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 77 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (pod) (tomcat_threads_current_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"})",
+              "legendFormat": "{{ "{{pod}}" }} tomcat current"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        },
+        {
+          "id": 45,
+          "title": "Tomcat Max Threads",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 77 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (pod) (tomcat_threads_config_max_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"})",
+              "legendFormat": "{{ "{{pod}}" }} tomcat max"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        },
+        {
           "id": 50,
           "title": "Hikari DB Connection Pool",
           "type": "row",
           "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 77 },
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 85 },
           "panels": []
         },
         {
           "id": 51,
           "title": "Hikari Active Connections",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 78 },
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 86 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "hikaricp_connections_active{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"}",
+              "expr": "sum by (pod) (hikaricp_connections_active{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"})",
               "legendFormat": "{{ "{{pod}}" }} active"
             }
           ],
@@ -495,11 +523,11 @@ data:
           "id": 52,
           "title": "Hikari Idle Connections",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 78 },
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 86 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "hikaricp_connections_idle{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"}",
+              "expr": "sum by (pod) (hikaricp_connections_idle{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"})",
               "legendFormat": "{{ "{{pod}}" }} idle"
             }
           ],
@@ -509,12 +537,12 @@ data:
           "id": 53,
           "title": "Hikari Pending Connections (Critical >0)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 78 },
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 86 },
           "datasource": { "uid": "prometheus" },
           "description": "Critical: >0 — connection pool 포화 가능성",
           "targets": [
             {
-              "expr": "hikaricp_connections_pending{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"}",
+              "expr": "sum by (pod) (hikaricp_connections_pending{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"})",
               "legendFormat": "{{ "{{pod}}" }} pending"
             }
           ],
@@ -529,11 +557,11 @@ data:
           "id": 54,
           "title": "Hikari Pool Usage %",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 78 },
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 86 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "hikaricp_connections_active{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"} / hikaricp_connections_max{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"}",
+              "expr": "sum by (pod) (hikaricp_connections_active{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"}) / sum by (pod) (hikaricp_connections_max{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-core\"})",
               "legendFormat": "{{ "{{pod}}" }} pool 사용률"
             }
           ],
@@ -550,7 +578,7 @@ data:
           "id": 55,
           "title": "Hikari Average Acquire Time",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 86 },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 94 },
           "datasource": { "uid": "prometheus" },
           "description": "hikaricp_connections_acquire_seconds_* — metric 없으면 No data",
           "targets": [
@@ -566,14 +594,14 @@ data:
           "title": "HPA / Scheduling",
           "type": "row",
           "collapsed": false,
-          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 94 },
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 102 },
           "panels": []
         },
         {
           "id": 61,
           "title": "HPA Replicas (Current / Desired / Max)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 95 },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 103 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -595,7 +623,7 @@ data:
           "id": 62,
           "title": "Pending Pods (application ns)",
           "type": "timeseries",
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 95 },
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 103 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
@@ -609,7 +637,7 @@ data:
           "id": 63,
           "title": "api-core Pods by Node",
           "type": "stat",
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 95 },
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 103 },
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
