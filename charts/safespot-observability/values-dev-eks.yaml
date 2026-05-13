@@ -162,6 +162,8 @@ safespot:
       enabled: true
     loadtest:
       enabled: true
+    cacheRegeneration:
+      enabled: true
 
   prometheusRules:
     redis:
@@ -276,7 +278,8 @@ fluent-bit:
     name: safespot-fluent-bit
     # IRSA annotation은 values-dev.infra.generated.yaml에서 주입됩니다.
     # SSM: /safespot/dev/observability/fluent-bit/irsa-role-arn
-    annotations: {}
+    annotations: 
+      eks.amazonaws.com/role-arn: "TODO_GENERATED_VALUE"
   tolerations:
     - operator: Exists
 
@@ -453,134 +456,184 @@ yace:
               period: 60
               length: 300
     static:
+      #     static:
       # SQS Queues
-      # TODO: dimensions[].value를 실제 SQS 큐 이름으로 교체하세요 (Terraform output 또는 AWS 콘솔 확인)
-      #       교체 완료 후 아래 주석(#)을 해제하세요.
-      #
-      # - namespace: AWS/SQS
-      #   name: sqs-cache-refresh
-      #   regions:
-      #     - ap-northeast-2
-      #   dimensions:
-      #     - name: QueueName
-      #       value: "<TODO: cache-refresh-queue-name>"
-      #   metrics:
-      #     - name: ApproximateNumberOfMessagesVisible
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: ApproximateNumberOfMessagesNotVisible
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: ApproximateAgeOfOldestMessage
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesSent
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesReceived
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesDeleted
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #
-      # - namespace: AWS/SQS
-      #   name: sqs-readmodel-refresh
-      #   regions:
-      #     - ap-northeast-2
-      #   dimensions:
-      #     - name: QueueName
-      #       value: "<TODO: readmodel-refresh-queue-name>"
-      #   metrics:
-      #     - name: ApproximateNumberOfMessagesVisible
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: ApproximateNumberOfMessagesNotVisible
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: ApproximateAgeOfOldestMessage
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesSent
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesReceived
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesDeleted
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #
-      # - namespace: AWS/SQS
-      #   name: sqs-env-cache-refresh
-      #   regions:
-      #     - ap-northeast-2
-      #   dimensions:
-      #     - name: QueueName
-      #       value: "<TODO: environment-cache-refresh-queue-name>"
-      #   metrics:
-      #     - name: ApproximateNumberOfMessagesVisible
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: ApproximateAgeOfOldestMessage
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesSent
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesReceived
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: NumberOfMessagesDeleted
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #
+      - namespace: AWS/SQS
+        name: sqs-cache-refresh
+        regions:
+          - ap-northeast-2
+        dimensions:
+          - name: QueueName
+            value: "{{ .Values.safespot.aws.sqs.cacheRefreshQueueName }}" # values-dev.infra.generated.yaml 값 참조
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateNumberOfMessagesNotVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesSent
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesReceived
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesDeleted
+            statistics: [Sum]
+            period: 60
+            length: 300
+
+      - namespace: AWS/SQS
+        name: sqs-readmodel-refresh
+        regions:
+          - ap-northeast-2
+        dimensions:
+          - name: QueueName
+            value: "{{ .Values.safespot.aws.sqs.readmodelRefreshQueueName }}" # values-dev.infra.generated.yaml 값 참조
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateNumberOfMessagesNotVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesSent
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesReceived
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesDeleted
+            statistics: [Sum]
+            period: 60
+            length: 300
+
+      - namespace: AWS/SQS
+        name: sqs-environment-cache-refresh
+        regions:
+          - ap-northeast-2
+        dimensions:
+          - name: QueueName
+            value: "{{ .Values.safespot.aws.sqs.environmentCacheRefreshQueueName }}" # values-dev.infra.generated.yaml 값 참조
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateNumberOfMessagesNotVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesSent
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesReceived
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: NumberOfMessagesDeleted
+            statistics: [Sum]
+            period: 60
+            length: 300
+
+      - namespace: AWS/SQS
+        name: sqs-cache-refresh-dlq
+        regions:
+          - ap-northeast-2
+        dimensions:
+          - name: QueueName
+            value: "{{ .Values.safespot.aws.sqs.cacheRefreshDlqName }}" # values-dev.infra.generated.yaml 값 참조
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+
+      - namespace: AWS/SQS
+        name: sqs-readmodel-refresh-dlq
+        regions:
+          - ap-northeast-2
+        dimensions:
+          - name: QueueName
+            value: "{{ .Values.safespot.aws.sqs.readmodelRefreshDlqName }}" # values-dev.infra.generated.yaml 값 참조
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+
+      - namespace: AWS/SQS
+        name: sqs-environment-cache-refresh-dlq
+        regions:
+          - ap-northeast-2
+        dimensions:
+          - name: QueueName
+            value: "{{ .Values.safespot.aws.sqs.environmentCacheRefreshDlqName }}" # values-dev.infra.generated.yaml 값 참조
+        metrics:
+          - name: ApproximateNumberOfMessagesVisible
+            statistics: [Maximum]
+            period: 60
+            length: 300
+          - name: ApproximateAgeOfOldestMessage
+            statistics: [Maximum]
+            period: 60
+            length: 300
+
       # Lambda
-      # TODO: dimensions[].value를 실제 async-worker Lambda function 이름으로 교체 후 주석 해제
-      #
-      # - namespace: AWS/Lambda
-      #   name: lambda-async-worker
-      #   regions:
-      #     - ap-northeast-2
-      #   dimensions:
-      #     - name: FunctionName
-      #       value: "<TODO: async-worker-lambda-function-name>"
-      #   metrics:
-      #     - name: Invocations
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: Errors
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: Throttles
-      #       statistics: [Sum]
-      #       period: 60
-      #       length: 300
-      #     - name: Duration
-      #       statistics: [Average, Maximum]
-      #       period: 60
-      #       length: 300
-      #     - name: ConcurrentExecutions
-      #       statistics: [Maximum]
-      #       period: 60
-      #       length: 300
-      []
+      - namespace: AWS/Lambda
+        name: lambda-async-worker
+        regions:
+          - ap-northeast-2
+        dimensions:
+          - name: FunctionName
+            value: "{{ .Values.safespot.aws.lambda.asyncWorkerFunctionName }}" # values-dev.infra.generated.yaml 값 참조
+        metrics:
+          - name: Invocations
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: Errors
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: Throttles
+            statistics: [Sum]
+            period: 60
+            length: 300
+          - name: Duration
+            statistics: [Average, Maximum]
+            period: 60
+            length: 300
+          - name: ConcurrentExecutions
+            statistics: [Maximum]
+            period: 60
+            length: 300
