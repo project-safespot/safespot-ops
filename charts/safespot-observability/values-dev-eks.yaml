@@ -697,8 +697,8 @@ yace:
           regions:
             - ap-northeast-2
           searchTags:
-            - key: Name
-              value: safespot-dev-alb
+            - key: ingress.k8s.aws/stack
+              value: safespot-dev-api
           metrics:
             - name: RequestCount
               statistics:
@@ -742,8 +742,8 @@ yace:
           regions:
             - ap-northeast-2
           searchTags:
-            - key: Name
-              value: safespot-dev-alb
+            - key: ingress.k8s.aws/stack
+              value: safespot-dev-api
           dimensionNameRequirements:
             - LoadBalancer
             - TargetGroup
