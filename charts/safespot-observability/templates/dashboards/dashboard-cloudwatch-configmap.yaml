@@ -98,7 +98,7 @@ data:
           "targets": [
             {
               "expr": "aws_rds_volume_bytes_used_average",
-              "legendFormat": "volume bytes used",
+              "legendFormat": "RDS VolumeBytesUsed Average - cluster={{`{{ dimension_DBClusterIdentifier }}`}}",
               "refId": "A"
             }
           ],
@@ -120,7 +120,7 @@ data:
           "targets": [
             {
               "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name!~\".*[dD][lL][qQ].*\"}",
-              "legendFormat": "{{`{{ name }}`}}",
+              "legendFormat": "SQS Visible Backlog Maximum - queue={{`{{ name }}`}}",
               "refId": "A"
             }
           ]
@@ -134,7 +134,7 @@ data:
           "targets": [
             {
               "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name!~\".*[dD][lL][qQ].*\"}",
-              "legendFormat": "{{`{{ name }}`}}",
+              "legendFormat": "SQS OldestMessageAge Maximum (s) - queue={{`{{ name }}`}}",
               "refId": "A"
             }
           ],
@@ -149,12 +149,12 @@ data:
           "targets": [
             {
               "expr": "aws_sqs_number_of_messages_sent_sum{name!~\".*[dD][lL][qQ].*\"}",
-              "legendFormat": "sent - {{`{{ name }}`}}",
+              "legendFormat": "SQS NumberOfMessagesSent Sum - queue={{`{{ name }}`}}",
               "refId": "A"
             },
             {
               "expr": "aws_sqs_number_of_messages_deleted_sum{name!~\".*[dD][lL][qQ].*\"}",
-              "legendFormat": "deleted - {{`{{ name }}`}}",
+              "legendFormat": "SQS NumberOfMessagesDeleted Sum - queue={{`{{ name }}`}}",
               "refId": "B"
             }
           ]
@@ -199,17 +199,17 @@ data:
           "targets": [
             {
               "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*cache.*refresh.*dlq.*|.*cache.*refresh.*DLQ.*|.*cache-refresh-dlq.*\"}",
-              "legendFormat": "DLQ Visible Backlog Maximum - queue=cache-refresh-dlq",
+              "legendFormat": "DLQ OldestMessageAge Maximum (s) - queue=cache-refresh-dlq",
               "refId": "A"
             },
             {
               "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*readmodel.*refresh.*dlq.*|.*readmodel.*refresh.*DLQ.*|.*readmodel-refresh-dlq.*\"}",
-              "legendFormat": "DLQ Visible Backlog Maximum - queue=readmodel-refresh-dlq",
+              "legendFormat": "DLQ OldestMessageAge Maximum (s) - queue=readmodel-refresh-dlq",
               "refId": "B"
             },
             {
               "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*environment.*cache.*refresh.*dlq.*|.*environment.*cache.*refresh.*DLQ.*|.*environment-cache-refresh-dlq.*\"}",
-              "legendFormat": "DLQ Visible Backlog Maximum - queue=environment-cache-refresh-dlq",
+              "legendFormat": "DLQ OldestMessageAge Maximum (s) - queue=environment-cache-refresh-dlq",
               "refId": "C"
             }
           ],
@@ -231,17 +231,17 @@ data:
           "targets": [
             {
               "expr": "aws_lambda_invocations_sum",
-              "legendFormat": "invocations - {{`{{ name }}`}}",
+              "legendFormat": "Lambda Invocations Sum - function={{`{{ name }}`}}",
               "refId": "A"
             },
             {
               "expr": "aws_lambda_errors_sum",
-              "legendFormat": "errors - {{`{{ name }}`}}",
+              "legendFormat": "Lambda Errors Sum - function={{`{{ name }}`}}",
               "refId": "B"
             },
             {
               "expr": "aws_lambda_throttles_sum",
-              "legendFormat": "throttles - {{`{{ name }}`}}",
+              "legendFormat": "Lambda Throttles Sum - function={{`{{ name }}`}}",
               "refId": "C"
             }
           ]
@@ -255,12 +255,12 @@ data:
           "targets": [
             {
               "expr": "aws_lambda_duration_average",
-              "legendFormat": "avg duration - {{`{{ name }}`}}",
+              "legendFormat": "Lambda Duration Average (ms) - function={{`{{ name }}`}}",
               "refId": "A"
             },
             {
               "expr": "aws_lambda_duration_maximum",
-              "legendFormat": "max duration - {{`{{ name }}`}}",
+              "legendFormat": "Lambda Duration Maximum (ms) - function={{`{{ name }}`}}",
               "refId": "B"
             }
           ],
@@ -275,7 +275,7 @@ data:
           "targets": [
             {
               "expr": "aws_lambda_concurrent_executions_maximum",
-              "legendFormat": "concurrent - {{`{{ name }}`}}",
+              "legendFormat": "Lambda ConcurrentExecutions Maximum - function={{`{{ name }}`}}",
               "refId": "A"
             }
           ]
@@ -298,7 +298,7 @@ data:
           "targets": [
             {
               "expr": "rate(aws_applicationelb_request_count_sum[1m])",
-              "legendFormat": "ALB TPS {{`{{ dimension_LoadBalancer }}`}}",
+              "legendFormat": "ALB RequestCount rate/s - lb={{`{{ dimension_LoadBalancer }}`}}",
               "refId": "A"
             }
           ],
@@ -314,12 +314,12 @@ data:
           "targets": [
             {
               "expr": "aws_applicationelb_target_response_time_average",
-              "legendFormat": "avg {{`{{ dimension_LoadBalancer }}`}}",
+              "legendFormat": "ALB TargetResponseTime Average (s) - lb={{`{{ dimension_LoadBalancer }}`}}",
               "refId": "A"
             },
             {
               "expr": "aws_applicationelb_target_response_time_maximum",
-              "legendFormat": "max {{`{{ dimension_LoadBalancer }}`}}",
+              "legendFormat": "ALB TargetResponseTime Maximum (s) - lb={{`{{ dimension_LoadBalancer }}`}}",
               "refId": "B"
             }
           ],
@@ -356,17 +356,17 @@ data:
           "targets": [
             {
               "expr": "rate(aws_applicationelb_httpcode_target_2xx_count_sum[1m])",
-              "legendFormat": "Target 2xx {{`{{ dimension_TargetGroup }}`}}",
+              "legendFormat": "Target HTTPCode_Target_2XX_Count rate/s - tg={{`{{ dimension_TargetGroup }}`}}",
               "refId": "A"
             },
             {
               "expr": "rate(aws_applicationelb_httpcode_target_4xx_count_sum[1m])",
-              "legendFormat": "Target 4xx {{`{{ dimension_TargetGroup }}`}}",
+              "legendFormat": "Target HTTPCode_Target_4XX_Count rate/s - tg={{`{{ dimension_TargetGroup }}`}}",
               "refId": "B"
             },
             {
               "expr": "rate(aws_applicationelb_httpcode_target_5xx_count_sum[1m])",
-              "legendFormat": "Target 5xx {{`{{ dimension_TargetGroup }}`}}",
+              "legendFormat": "Target HTTPCode_Target_5XX_Count rate/s - tg={{`{{ dimension_TargetGroup }}`}}",
               "refId": "C"
             }
           ],
@@ -382,12 +382,12 @@ data:
           "targets": [
             {
               "expr": "rate(aws_applicationelb_rejected_connection_count_sum[1m])",
-              "legendFormat": "Rejected connections/s",
+              "legendFormat": "ALB RejectedConnectionCount rate/s - lb={{`{{ dimension_LoadBalancer }}`}}",
               "refId": "A"
             },
             {
               "expr": "rate(aws_applicationelb_target_connection_error_count_sum[1m])",
-              "legendFormat": "Target connection errors/s {{`{{ dimension_TargetGroup }}`}}",
+              "legendFormat": "ALB TargetConnectionErrorCount rate/s - tg={{`{{ dimension_TargetGroup }}`}}",
               "refId": "B"
             }
           ],
