@@ -34,7 +34,7 @@ data:
           "targets": [
             {
               "expr": "aws_rds_cpuutilization_average",
-              "legendFormat": "CPU %",
+              "legendFormat": "RDS CPUUtilization Average (%) - cluster={{`{{ dimension_DBClusterIdentifier }}`}} instance={{`{{ dimension_DBInstanceIdentifier }}`}}",
               "refId": "A"
             }
           ],
@@ -49,7 +49,7 @@ data:
           "targets": [
             {
               "expr": "aws_rds_database_connections_average",
-              "legendFormat": "connections",
+              "legendFormat": "RDS DatabaseConnections Average - cluster={{`{{ dimension_DBClusterIdentifier }}`}} instance={{`{{ dimension_DBInstanceIdentifier }}`}}",
               "refId": "A"
             }
           ]
@@ -63,12 +63,12 @@ data:
           "targets": [
             {
               "expr": "aws_rds_read_latency_average * 1000",
-              "legendFormat": "read latency",
+              "legendFormat": "RDS ReadLatency Average (ms) - cluster={{`{{ dimension_DBClusterIdentifier }}`}} instance={{`{{ dimension_DBInstanceIdentifier }}`}}",
               "refId": "A"
             },
             {
               "expr": "aws_rds_write_latency_average * 1000",
-              "legendFormat": "write latency",
+              "legendFormat": "RDS WriteLatency Average (ms) - cluster={{`{{ dimension_DBClusterIdentifier }}`}} instance={{`{{ dimension_DBInstanceIdentifier }}`}}",
               "refId": "B"
             }
           ],
@@ -83,7 +83,7 @@ data:
           "targets": [
             {
               "expr": "aws_rds_aurora_replica_lag_maximum",
-              "legendFormat": "replica lag",
+              "legendFormat": "AuroraReplicaLag Maximum (ms) - cluster={{`{{ dimension_DBClusterIdentifier }}`}} instance={{`{{ dimension_DBInstanceIdentifier }}`}}",
               "refId": "A"
             }
           ],
@@ -175,17 +175,17 @@ data:
           "targets": [
             {
               "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name=~\".*cache.*refresh.*dlq.*|.*cache.*refresh.*DLQ.*|.*cache-refresh-dlq.*\"}",
-              "legendFormat": "cache-refresh-dlq",
+              "legendFormat": "DLQ Visible Backlog Maximum - queue=cache-refresh-dlq",
               "refId": "A"
             },
             {
               "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name=~\".*readmodel.*refresh.*dlq.*|.*readmodel.*refresh.*DLQ.*|.*readmodel-refresh-dlq.*\"}",
-              "legendFormat": "readmodel-refresh-dlq",
+              "legendFormat": "DLQ Visible Backlog Maximum - queue=readmodel-refresh-dlq",
               "refId": "B"
             },
             {
               "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{name=~\".*environment.*cache.*refresh.*dlq.*|.*environment.*cache.*refresh.*DLQ.*|.*environment-cache-refresh-dlq.*\"}",
-              "legendFormat": "environment-cache-refresh-dlq",
+              "legendFormat": "DLQ Visible Backlog Maximum - queue=environment-cache-refresh-dlq",
               "refId": "C"
             }
           ]
@@ -199,17 +199,17 @@ data:
           "targets": [
             {
               "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*cache.*refresh.*dlq.*|.*cache.*refresh.*DLQ.*|.*cache-refresh-dlq.*\"}",
-              "legendFormat": "cache-refresh-dlq",
+              "legendFormat": "DLQ Visible Backlog Maximum - queue=cache-refresh-dlq",
               "refId": "A"
             },
             {
               "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*readmodel.*refresh.*dlq.*|.*readmodel.*refresh.*DLQ.*|.*readmodel-refresh-dlq.*\"}",
-              "legendFormat": "readmodel-refresh-dlq",
+              "legendFormat": "DLQ Visible Backlog Maximum - queue=readmodel-refresh-dlq",
               "refId": "B"
             },
             {
               "expr": "aws_sqs_approximate_age_of_oldest_message_maximum{name=~\".*environment.*cache.*refresh.*dlq.*|.*environment.*cache.*refresh.*DLQ.*|.*environment-cache-refresh-dlq.*\"}",
-              "legendFormat": "environment-cache-refresh-dlq",
+              "legendFormat": "DLQ Visible Backlog Maximum - queue=environment-cache-refresh-dlq",
               "refId": "C"
             }
           ],
@@ -335,12 +335,12 @@ data:
           "targets": [
             {
               "expr": "rate(aws_applicationelb_httpcode_elb_4xx_count_sum[1m])",
-              "legendFormat": "ELB 4xx",
+              "legendFormat": "ALB HTTPCode_ELB_4XX_Count rate/s - lb={{`{{ dimension_LoadBalancer }}`}}",
               "refId": "A"
             },
             {
               "expr": "rate(aws_applicationelb_httpcode_elb_5xx_count_sum[1m])",
-              "legendFormat": "ELB 5xx",
+              "legendFormat": "ALB HTTPCode_ELB_5XX_Count rate/s - lb={{`{{ dimension_LoadBalancer }}`}}",
               "refId": "B"
             }
           ],
@@ -403,12 +403,12 @@ data:
           "targets": [
             {
               "expr": "aws_applicationelb_active_connection_count_sum",
-              "legendFormat": "Active connections",
+              "legendFormat": "ALB ActiveConnectionCount Sum - lb={{`{{ dimension_LoadBalancer }}`}}",
               "refId": "A"
             },
             {
               "expr": "aws_applicationelb_new_connection_count_sum",
-              "legendFormat": "New connections",
+              "legendFormat": "ALB NewConnectionCount Sum - lb={{`{{ dimension_LoadBalancer }}`}}",
               "refId": "B"
             }
           ]
