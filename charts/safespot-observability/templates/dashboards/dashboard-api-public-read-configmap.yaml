@@ -71,7 +71,7 @@ data:
           "description": "Warning: >1% for 5m",
           "targets": [
             {
-              "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",status=~\"4..\",uri!~\"/actuator.*|UNKNOWN\"}[5m])) / sum(rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",uri!~\"/actuator.*|UNKNOWN\"}[5m]))",
+              "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",status=~\"4..\",uri!~\"/actuator.*|UNKNOWN\"}[5m])) / sum(rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",uri!~\"/actuator.*|UNKNOWN\"}[5m]))",
               "legendFormat": "4xx rate"
             }
           ],
@@ -91,7 +91,7 @@ data:
           "description": "Warning: >1% for 5m",
           "targets": [
             {
-              "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",status=~\"5..\",uri!~\"/actuator.*|UNKNOWN\"}[5m])) / sum(rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",uri!~\"/actuator.*|UNKNOWN\"}[5m]))",
+              "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",status=~\"5..\",uri!~\"/actuator.*|UNKNOWN\"}[5m])) / sum(rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",uri!~\"/actuator.*|UNKNOWN\"}[5m]))",
               "legendFormat": "5xx rate"
             }
           ],
@@ -119,15 +119,15 @@ data:
           "description": "metric: safespot_cache_requests_total | cache: disaster_messages / disaster_detail / shelter_status / weather / air_quality",
           "targets": [
             {
-              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=\"hit\"}[1m]))",
+              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=~\"api-public-read|api-public-read-surge\",result=\"hit\"}[1m]))",
               "legendFormat": "hit — {{ "{{cache}}" }}"
             },
             {
-              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=\"miss\"}[1m]))",
+              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=~\"api-public-read|api-public-read-surge\",result=\"miss\"}[1m]))",
               "legendFormat": "miss — {{ "{{cache}}" }}"
             },
             {
-              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=\"parse_error\"}[1m]))",
+              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=~\"api-public-read|api-public-read-surge\",result=\"parse_error\"}[1m]))",
               "legendFormat": "parse_error — {{ "{{cache}}" }}"
             }
           ],
@@ -142,11 +142,11 @@ data:
           "description": "전체 hit rate + cache별 hit rate | metric: safespot_cache_requests_total | 기동 직후 No data일 수 있음",
           "targets": [
             {
-              "expr": "sum(rate(safespot_cache_requests_total{service=\"api-public-read\",result=\"hit\"}[5m])) / sum(rate(safespot_cache_requests_total{service=\"api-public-read\",result=~\"hit|miss|parse_error\"}[5m]))",
+              "expr": "sum(rate(safespot_cache_requests_total{service=~\"api-public-read|api-public-read-surge\",result=\"hit\"}[5m])) / sum(rate(safespot_cache_requests_total{service=~\"api-public-read|api-public-read-surge\",result=~\"hit|miss|parse_error\"}[5m]))",
               "legendFormat": "overall hit rate"
             },
             {
-              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=\"hit\"}[5m])) / sum by (cache) (rate(safespot_cache_requests_total{service=\"api-public-read\",result=~\"hit|miss|parse_error\"}[5m]))",
+              "expr": "sum by (cache) (rate(safespot_cache_requests_total{service=~\"api-public-read|api-public-read-surge\",result=\"hit\"}[5m])) / sum by (cache) (rate(safespot_cache_requests_total{service=~\"api-public-read|api-public-read-surge\",result=~\"hit|miss|parse_error\"}[5m]))",
               "legendFormat": "{{ "{{cache}}" }} hit rate"
             }
           ],
@@ -168,7 +168,7 @@ data:
           "description": "metric: safespot_cache_fallback_total | reason: redis_error / timeout / …",
           "targets": [
             {
-              "expr": "sum by (cache, reason) (rate(safespot_cache_fallback_total{service=\"api-public-read\"}[1m]))",
+              "expr": "sum by (cache, reason) (rate(safespot_cache_fallback_total{service=~\"api-public-read|api-public-read-surge\"}[1m]))",
               "legendFormat": "{{ "{{cache}}" }} — {{ "{{reason}}" }}"
             }
           ],
@@ -183,7 +183,7 @@ data:
           "description": "Warning: >1% | safespot_cache_fallback_total / http_server_requests",
           "targets": [
             {
-              "expr": "sum(rate(safespot_cache_fallback_total{service=\"api-public-read\"}[5m])) / sum(rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",uri!~\"/actuator.*|UNKNOWN\"}[5m]))",
+              "expr": "sum(rate(safespot_cache_fallback_total{service=~\"api-public-read|api-public-read-surge\"}[5m])) / sum(rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",uri!~\"/actuator.*|UNKNOWN\"}[5m]))",
               "legendFormat": "redis fallback rate"
             }
           ],
@@ -203,7 +203,7 @@ data:
           "description": "metric: safespot_db_fallback_queries_total | repository: disaster_alert / shelter_status / weather_log / air_quality_log",
           "targets": [
             {
-              "expr": "sum by (repository, reason) (rate(safespot_db_fallback_queries_total{service=\"api-public-read\"}[1m]))",
+              "expr": "sum by (repository, reason) (rate(safespot_db_fallback_queries_total{service=~\"api-public-read|api-public-read-surge\"}[1m]))",
               "legendFormat": "{{ "{{repository}}" }} — {{ "{{reason}}" }}"
             }
           ],
@@ -218,7 +218,7 @@ data:
           "description": "metric: safespot_redis_read_seconds_* | hit/miss 포함 전체 Redis 읽기 지연",
           "targets": [
             {
-              "expr": "sum by (cache) (rate(safespot_redis_read_seconds_sum{service=\"api-public-read\"}[5m])) / sum by (cache) (rate(safespot_redis_read_seconds_count{service=\"api-public-read\"}[5m]))",
+              "expr": "sum by (cache) (rate(safespot_redis_read_seconds_sum{service=~\"api-public-read|api-public-read-surge\"}[5m])) / sum by (cache) (rate(safespot_redis_read_seconds_count{service=~\"api-public-read|api-public-read-surge\"}[5m]))",
               "legendFormat": "{{ "{{cache}}" }} avg read latency"
             }
           ],
@@ -233,7 +233,7 @@ data:
           "description": "metric: safespot_db_fallback_seconds_* | fallback 발생 시 DB 쿼리 지연",
           "targets": [
             {
-              "expr": "sum by (repository) (rate(safespot_db_fallback_seconds_sum{service=\"api-public-read\"}[5m])) / sum by (repository) (rate(safespot_db_fallback_seconds_count{service=\"api-public-read\"}[5m]))",
+              "expr": "sum by (repository) (rate(safespot_db_fallback_seconds_sum{service=~\"api-public-read|api-public-read-surge\"}[5m])) / sum by (repository) (rate(safespot_db_fallback_seconds_count{service=~\"api-public-read|api-public-read-surge\"}[5m]))",
               "legendFormat": "{{ "{{repository}}" }} avg fallback latency"
             }
           ],
@@ -248,7 +248,7 @@ data:
           "description": "metric: safespot_cache_regeneration_requested_total | cache miss / stale 등으로 재생성 요청된 횟수",
           "targets": [
             {
-              "expr": "sum by (cache, reason, result) (rate(safespot_cache_regeneration_requested_total{service=\"api-public-read\"}[1m]))",
+              "expr": "sum by (cache, reason, result) (rate(safespot_cache_regeneration_requested_total{service=~\"api-public-read|api-public-read-surge\"}[1m]))",
               "legendFormat": "{{ "{{cache}}" }} {{ "{{reason}}" }} → {{ "{{result}}" }}"
             }
           ],
@@ -272,7 +272,7 @@ data:
           "description": "Leader는 실제 DB fallback을 수행한 요청입니다.",
           "targets": [
             {
-              "expr": "sum by (cache, repository) (rate(fallback_singleflight_leader_total{service=\"api-public-read\"}[1m]))",
+              "expr": "sum by (cache, repository) (rate(fallback_singleflight_leader_total{service=~\"api-public-read|api-public-read-surge\"}[1m]))",
               "legendFormat": "{{ "{{cache}}" }} / {{ "{{repository}}" }}"
             }
           ],
@@ -287,7 +287,7 @@ data:
           "description": "Join은 동일 key에 대해 leader 결과를 기다린 follower 요청입니다.",
           "targets": [
             {
-              "expr": "sum by (cache, repository) (rate(fallback_singleflight_join_total{service=\"api-public-read\"}[1m]))",
+              "expr": "sum by (cache, repository) (rate(fallback_singleflight_join_total{service=~\"api-public-read|api-public-read-surge\"}[1m]))",
               "legendFormat": "{{ "{{cache}}" }} / {{ "{{repository}}" }}"
             }
           ],
@@ -302,7 +302,7 @@ data:
           "description": "Suppressed는 single-flight join으로 DB fallback이 억제된 요청입니다.",
           "targets": [
             {
-              "expr": "sum by (cache, repository) (rate(fallback_suppressed_total{service=\"api-public-read\"}[1m]))",
+              "expr": "sum by (cache, repository) (rate(fallback_suppressed_total{service=~\"api-public-read|api-public-read-surge\"}[1m]))",
               "legendFormat": "{{ "{{cache}}" }} / {{ "{{repository}}" }}"
             }
           ],
@@ -317,7 +317,7 @@ data:
           "description": "Suppression Ratio = join / (leader + join). single-flight는 DB fallback 폭주를 줄이지만 cold miss latency 자체를 제거하지는 않습니다.",
           "targets": [
             {
-              "expr": "sum by (cache, repository) (rate(fallback_singleflight_join_total{service=\"api-public-read\"}[1m])) / (sum by (cache, repository) (rate(fallback_singleflight_join_total{service=\"api-public-read\"}[1m])) + sum by (cache, repository) (rate(fallback_singleflight_leader_total{service=\"api-public-read\"}[1m])))",
+              "expr": "sum by (cache, repository) (rate(fallback_singleflight_join_total{service=~\"api-public-read|api-public-read-surge\"}[1m])) / (sum by (cache, repository) (rate(fallback_singleflight_join_total{service=~\"api-public-read|api-public-read-surge\"}[1m])) + sum by (cache, repository) (rate(fallback_singleflight_leader_total{service=~\"api-public-read|api-public-read-surge\"}[1m])))",
               "legendFormat": "{{ "{{cache}}" }} / {{ "{{repository}}" }}"
             }
           ],
@@ -332,7 +332,7 @@ data:
           "description": "No data이면 timeout이 발생하지 않았거나 timeout metric series가 아직 생성되지 않은 상태일 수 있습니다.",
           "targets": [
             {
-              "expr": "sum by (cache, repository) (rate(fallback_singleflight_timeout_total{service=\"api-public-read\"}[1m]))",
+              "expr": "sum by (cache, repository) (rate(fallback_singleflight_timeout_total{service=~\"api-public-read|api-public-read-surge\"}[1m]))",
               "legendFormat": "{{ "{{cache}}" }} / {{ "{{repository}}" }}"
             }
           ],
@@ -346,7 +346,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (repository, reason) (rate(safespot_db_fallback_queries_total{service=\"api-public-read\"}[1m]))",
+              "expr": "sum by (repository, reason) (rate(safespot_db_fallback_queries_total{service=~\"api-public-read|api-public-read-surge\"}[1m]))",
               "legendFormat": "{{ "{{repository}}" }} / {{ "{{reason}}" }}"
             }
           ],
@@ -360,7 +360,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (pod, service) (hikaricp_connections_pending{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"})",
+              "expr": "sum by (pod, service) (hikaricp_connections_pending{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"})",
               "legendFormat": "{{ "{{pod}}" }} / {{ "{{service}}" }}"
             }
           ],
@@ -375,8 +375,8 @@ data:
           "description": "cold miss latency 자체는 single-flight로 제거되지 않으므로 p99와 함께 봅니다.",
           "targets": [
             {
-              "expr": "histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}[5m])))",
-              "legendFormat": "{{ "{{uri}}" }} p99"
+              "expr": "histogram_quantile(0.99, sum by (service, uri, le) (rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"}[5m])))",
+              "legendFormat": "{{ "{{service}}" }} {{ "{{uri}}" }} p99"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 } }
@@ -398,7 +398,7 @@ data:
           "description": "Warning: >80% for 5m | Critical: >90% for 5m",
           "targets": [
             {
-              "expr": "sum by (pod) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",area=\"heap\"}) / sum by (pod) (jvm_memory_max_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",area=\"heap\"})",
+              "expr": "sum by (pod) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",area=\"heap\"}) / sum by (pod) (jvm_memory_max_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",area=\"heap\"})",
               "legendFormat": "{{ "{{pod}}" }} heap 사용률"
             }
           ],
@@ -420,7 +420,7 @@ data:
           "description": "Eden/Survivor는 JVM에 따라 max가 부정확하므로 used bytes 절대값으로 표시. Old Gen은 우측 패널 참조.",
           "targets": [
             {
-              "expr": "sum by (pod, id) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",area=\"heap\",id!~\".*[Oo]ld.*\"})",
+              "expr": "sum by (pod, id) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",area=\"heap\",id!~\".*[Oo]ld.*\"})",
               "legendFormat": "{{ "{{pod}}" }} / {{ "{{id}}" }}"
             }
           ],
@@ -435,7 +435,7 @@ data:
           "description": "Warning: >70% for 5m | Critical: >85% for 5m — Full GC 전조",
           "targets": [
             {
-              "expr": "sum by (pod) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",area=\"heap\",id=~\".*[Oo]ld.*\"}) / sum by (pod) (jvm_memory_max_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",area=\"heap\",id=~\".*[Oo]ld.*\"})",
+              "expr": "sum by (pod) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",area=\"heap\",id=~\".*[Oo]ld.*\"}) / sum by (pod) (jvm_memory_max_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",area=\"heap\",id=~\".*[Oo]ld.*\"})",
               "legendFormat": "{{ "{{pod}}" }} Old Gen"
             }
           ],
@@ -457,7 +457,7 @@ data:
           "description": "초당 GC 소비 시간 비율. 0.05=5%(warning), 0.10=10%(critical) | GC pause 미발생 시 No data",
           "targets": [
             {
-              "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_sum{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}[1m]))",
+              "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_sum{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"}[1m]))",
               "legendFormat": "{{ "{{pod}}" }} GC time ratio"
             }
           ],
@@ -477,7 +477,7 @@ data:
           "description": "Warning: >200ms | Critical: >1s | GC pause 미발생 시 No data",
           "targets": [
             {
-              "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_sum{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}[5m])) / sum by (pod) (rate(jvm_gc_pause_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}[5m]))",
+              "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_sum{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"}[5m])) / sum by (pod) (rate(jvm_gc_pause_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"}[5m]))",
               "legendFormat": "{{ "{{pod}}" }} avg pause"
             }
           ],
@@ -497,7 +497,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (pod, id) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",area=\"nonheap\"})",
+              "expr": "sum by (pod, id) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",area=\"nonheap\"})",
               "legendFormat": "{{ "{{pod}}" }} / {{ "{{id}}" }}"
             }
           ],
@@ -511,7 +511,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}[1m]))",
+              "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"}[1m]))",
               "legendFormat": "{{ "{{pod}}" }} count"
             }
           ],
@@ -525,7 +525,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "max by (pod, action, cause) (jvm_gc_pause_seconds_max{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"})",
+              "expr": "max by (pod, action, cause) (jvm_gc_pause_seconds_max{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"})",
               "legendFormat": "{{ "{{pod}}" }} {{ "{{action}}" }} ({{ "{{cause}}" }})"
             }
           ],
@@ -547,7 +547,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (pod, container) (container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container=\"api-public-read\"})",
+              "expr": "sum by (pod, container) (container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container=~\"api-public-read|api-public-read-surge\"})",
               "legendFormat": "{{ "{{pod}}" }} working set"
             }
           ],
@@ -562,7 +562,7 @@ data:
           "description": "Warning: >85% | Critical: >95%",
           "targets": [
             {
-              "expr": "sum by (pod, container) (container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container=\"api-public-read\"}) / sum by (pod, container) (kube_pod_container_resource_limits{namespace=\"{{ .Values.safespot.namespace.application }}\",container=\"api-public-read\",resource=\"memory\"})",
+              "expr": "sum by (pod, container) (container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container=~\"api-public-read|api-public-read-surge\"}) / sum by (pod, container) (kube_pod_container_resource_limits{namespace=\"{{ .Values.safespot.namespace.application }}\",container=~\"api-public-read|api-public-read-surge\",resource=\"memory\"})",
               "legendFormat": "{{ "{{pod}}" }} mem limit %"
             }
           ],
@@ -584,7 +584,7 @@ data:
           "description": "container working_set - JVM total used = native/off-heap/direct buffer 추정값",
           "targets": [
             {
-              "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container=\"api-public-read\"}) - sum by (pod) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"})",
+              "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",container=~\"api-public-read|api-public-read-surge\"}) - sum by (pod) (jvm_memory_used_bytes{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"})",
               "legendFormat": "{{ "{{pod}}" }} off-heap gap"
             }
           ],
@@ -598,7 +598,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (pod, container) (rate(container_cpu_usage_seconds_total{namespace=\"{{ .Values.safespot.namespace.application }}\",container=\"api-public-read\"}[1m]))",
+              "expr": "sum by (pod, container) (rate(container_cpu_usage_seconds_total{namespace=\"{{ .Values.safespot.namespace.application }}\",container=~\"api-public-read|api-public-read-surge\"}[1m]))",
               "legendFormat": "{{ "{{pod}}" }} cpu"
             }
           ],
@@ -640,7 +640,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "jvm_threads_live_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}",
+              "expr": "jvm_threads_live_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"}",
               "legendFormat": "{{ "{{pod}}" }} live threads"
             }
           ],
@@ -654,7 +654,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "jvm_threads_peak_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}",
+              "expr": "jvm_threads_peak_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"}",
               "legendFormat": "{{ "{{pod}}" }} peak threads"
             }
           ],
@@ -669,7 +669,7 @@ data:
           "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. No data is expected unless the application starts exposing these metrics.",
           "targets": [
             {
-              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"})",
+              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"})",
               "legendFormat": "{{ "{{pod}}" }} tomcat busy"
             }
           ],
@@ -684,7 +684,7 @@ data:
           "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. No data is expected unless the application starts exposing these metrics.",
           "targets": [
             {
-              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}) / sum by (pod) (tomcat_threads_config_max_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"})",
+              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"}) / sum by (pod) (tomcat_threads_config_max_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"})",
               "legendFormat": "{{ "{{pod}}" }} busy ratio"
             }
           ],
@@ -705,7 +705,7 @@ data:
           "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. No data is expected unless the application starts exposing these metrics.",
           "targets": [
             {
-              "expr": "sum by (pod) (tomcat_threads_current_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"})",
+              "expr": "sum by (pod) (tomcat_threads_current_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"})",
               "legendFormat": "{{ "{{pod}}" }} tomcat current"
             }
           ],
@@ -720,7 +720,7 @@ data:
           "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. No data is expected unless the application starts exposing these metrics.",
           "targets": [
             {
-              "expr": "sum by (pod) (tomcat_threads_config_max_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"})",
+              "expr": "sum by (pod) (tomcat_threads_config_max_threads{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"})",
               "legendFormat": "{{ "{{pod}}" }} tomcat max"
             }
           ],
@@ -743,7 +743,7 @@ data:
           "description": "Critical: >0. No data means metric/scrape/query mismatch, not zero.",
           "targets": [
             {
-              "expr": "sum by (pod) (hikaricp_connections_pending{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"})",
+              "expr": "sum by (pod) (hikaricp_connections_pending{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"})",
               "legendFormat": "{{ "{{pod}}" }} pending"
             }
           ],
@@ -762,7 +762,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (pod) (hikaricp_connections_active{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"})",
+              "expr": "sum by (pod) (hikaricp_connections_active{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"})",
               "legendFormat": "{{ "{{pod}}" }} active"
             }
           ],
@@ -776,7 +776,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (pod) (hikaricp_connections_max{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"})",
+              "expr": "sum by (pod) (hikaricp_connections_max{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"})",
               "legendFormat": "{{ "{{pod}}" }} max"
             }
           ],
@@ -790,7 +790,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (pod) (hikaricp_connections_active{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"}) / sum by (pod) (hikaricp_connections_max{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\"})",
+              "expr": "sum by (pod) (hikaricp_connections_active{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"}) / sum by (pod) (hikaricp_connections_max{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\"})",
               "legendFormat": "{{ "{{pod}}" }} pool usage"
             }
           ],
