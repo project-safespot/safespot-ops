@@ -590,7 +590,9 @@ yace:
         AWS/ElastiCache:
           - Name
         AWS/ApplicationELB:
-          - Name
+          - ingress.k8s.aws/stack
+          - elbv2.k8s.aws/cluster
+          - service.k8s.aws/stack
       jobs:
         # Aurora RDS
         # TODO: searchTags.value를 Aurora 클러스터에 실제 부여된 AWS 태그 값으로 교체하세요
