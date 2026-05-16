@@ -113,7 +113,7 @@ safespot:
 
   # API HTTP 메트릭 PromQL 필터
   api:
-    servicesFilter: "api-core|api-public-read"
+    servicesFilter: "api-core|api-public-read|api-public-read-surge"
 
   # AWS 리소스 식별자 (기본값 빈 문자열)
   # values-dev.infra.generated.yaml 에서 실제 값으로 오버라이드됩니다.

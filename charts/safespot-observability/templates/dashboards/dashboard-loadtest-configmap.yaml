@@ -23,7 +23,7 @@ data:
           {
             "name": "service",
             "type": "custom",
-            "query": "api-core,api-public-read",
+            "query": "api-core,api-public-read,api-public-read-surge",
             "multi": true,
             "includeAll": true,
             "current": {
@@ -507,12 +507,12 @@ data:
           "description": "Default thread signal for api-public-read because tomcat_threads_* is not currently exposed by api-public-read actuator.",
           "targets": [
             {
-              "expr": "jvm_threads_live_threads{namespace=\"application\",service=~\"api-public-read|api-core\"}",
+              "expr": "jvm_threads_live_threads{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"}",
               "legendFormat": "live {{`{{pod}}`}}",
               "refId": "A"
             },
             {
-              "expr": "jvm_threads_peak_threads{namespace=\"application\",service=~\"api-public-read|api-core\"}",
+              "expr": "jvm_threads_peak_threads{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"}",
               "legendFormat": "peak {{`{{pod}}`}}",
               "refId": "B"
             }
@@ -544,17 +544,17 @@ data:
           "description": "Pending 0 should render as 0. No data means metric/scrape/query mismatch.",
           "targets": [
             {
-              "expr": "sum by (pod) (hikaricp_connections_pending{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "expr": "sum by (pod) (hikaricp_connections_pending{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"})",
               "legendFormat": "pending {{`{{pod}}`}}",
               "refId": "A"
             },
             {
-              "expr": "sum by (pod) (hikaricp_connections_active{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "expr": "sum by (pod) (hikaricp_connections_active{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"})",
               "legendFormat": "active {{`{{pod}}`}}",
               "refId": "B"
             },
             {
-              "expr": "sum by (pod) (hikaricp_connections_max{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "expr": "sum by (pod) (hikaricp_connections_max{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"})",
               "legendFormat": "max {{`{{pod}}`}}",
               "refId": "C"
             }
@@ -569,7 +569,7 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (pod) (hikaricp_connections_active{namespace=\"application\",service=~\"api-public-read|api-core\"}) / sum by (pod) (hikaricp_connections_max{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "expr": "sum by (pod) (hikaricp_connections_active{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"}) / sum by (pod) (hikaricp_connections_max{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"})",
               "legendFormat": "{{`{{pod}}`}} pool usage",
               "refId": "A"
             }
@@ -585,17 +585,17 @@ data:
           "description": "Uses count/sum/max. jvm_gc_pause_seconds_bucket is not expected unless the application enables GC pause histograms.",
           "targets": [
             {
-              "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_count{namespace=\"application\",service=~\"api-public-read|api-core\"}[1m]))",
+              "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_count{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"}[1m]))",
               "legendFormat": "count {{`{{pod}}`}}",
               "refId": "A"
             },
             {
-              "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_sum{namespace=\"application\",service=~\"api-public-read|api-core\"}[1m])) / sum by (pod) (rate(jvm_gc_pause_seconds_count{namespace=\"application\",service=~\"api-public-read|api-core\"}[1m]))",
+              "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_sum{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"}[1m])) / sum by (pod) (rate(jvm_gc_pause_seconds_count{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"}[1m]))",
               "legendFormat": "avg {{`{{pod}}`}}",
               "refId": "B"
             },
             {
-              "expr": "max by (pod) (jvm_gc_pause_seconds_max{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "expr": "max by (pod) (jvm_gc_pause_seconds_max{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"})",
               "legendFormat": "max {{`{{pod}}`}}",
               "refId": "C"
             }
@@ -627,17 +627,17 @@ data:
           "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. No data is expected unless the application starts exposing these metrics. Discovery: {__name__=~\"tomcat_threads_.*\", namespace=\"application\"}",
           "targets": [
             {
-              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"})",
               "legendFormat": "busy {{`{{pod}}`}}",
               "refId": "A"
             },
             {
-              "expr": "sum by (pod) (tomcat_threads_current_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "expr": "sum by (pod) (tomcat_threads_current_threads{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"})",
               "legendFormat": "current {{`{{pod}}`}}",
               "refId": "B"
             },
             {
-              "expr": "sum by (pod) (tomcat_threads_config_max_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "expr": "sum by (pod) (tomcat_threads_config_max_threads{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"})",
               "legendFormat": "max {{`{{pod}}`}}",
               "refId": "C"
             }
@@ -653,7 +653,7 @@ data:
           "description": "tomcat_threads_* is not currently exposed by api-public-read actuator. No data is expected unless the application starts exposing these metrics.",
           "targets": [
             {
-              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"application\",service=~\"api-public-read|api-core\"}) / sum by (pod) (tomcat_threads_config_max_threads{namespace=\"application\",service=~\"api-public-read|api-core\"})",
+              "expr": "sum by (pod) (tomcat_threads_busy_threads{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"}) / sum by (pod) (tomcat_threads_config_max_threads{namespace=\"application\",service=~\"api-public-read|api-public-read-surge|api-core\"})",
               "legendFormat": "{{`{{pod}}`}} busy ratio",
               "refId": "A"
             }

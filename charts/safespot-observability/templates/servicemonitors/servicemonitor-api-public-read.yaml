@@ -11,7 +11,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: api-public-read
+      service: api-public-read
       env: {{ .Values.safespot.env }}
   namespaceSelector:
     matchNames:
