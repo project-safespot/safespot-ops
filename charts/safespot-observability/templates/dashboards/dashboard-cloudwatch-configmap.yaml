@@ -331,15 +331,15 @@ data:
           "type": "timeseries",
           "gridPos": { "x": 0, "y": 44, "w": 12, "h": 6 },
           "datasource": "Prometheus",
-          "description": "ALB 자체가 반환한 4xx/5xx. 메트릭: aws_applicationelb_httpcode_elb_4xx_count_sum / _5xx_count_sum",
+          "description": "ALB 자체가 반환한 4xx/5xx. 메트릭: aws_applicationelb_httpcode_elb_4_xx_count_sum / _5_xx_count_sum",
           "targets": [
             {
-              "expr": "rate(aws_applicationelb_httpcode_elb_4xx_count_sum[1m])",
+              "expr": "rate(aws_applicationelb_httpcode_elb_4_xx_count_sum[1m])",
               "legendFormat": "ELB 4xx",
               "refId": "A"
             },
             {
-              "expr": "rate(aws_applicationelb_httpcode_elb_5xx_count_sum[1m])",
+              "expr": "rate(aws_applicationelb_httpcode_elb_5_xx_count_sum[1m])",
               "legendFormat": "ELB 5xx",
               "refId": "B"
             }
@@ -355,17 +355,17 @@ data:
           "description": "Target Group 이 반환한 HTTP 상태 코드. 메트릭: aws_applicationelb_httpcode_target_{2|4|5}xx_count_sum",
           "targets": [
             {
-              "expr": "rate(aws_applicationelb_httpcode_target_2xx_count_sum[1m])",
+              "expr": "rate(aws_applicationelb_httpcode_target_2_xx_count_sum[1m])",
               "legendFormat": "Target 2xx {{`{{ dimension_TargetGroup }}`}}",
               "refId": "A"
             },
             {
-              "expr": "rate(aws_applicationelb_httpcode_target_4xx_count_sum[1m])",
+              "expr": "rate(aws_applicationelb_httpcode_target_4_xx_count_sum[1m])",
               "legendFormat": "Target 4xx {{`{{ dimension_TargetGroup }}`}}",
               "refId": "B"
             },
             {
-              "expr": "rate(aws_applicationelb_httpcode_target_5xx_count_sum[1m])",
+              "expr": "rate(aws_applicationelb_httpcode_target_5_xx_count_sum[1m])",
               "legendFormat": "Target 5xx {{`{{ dimension_TargetGroup }}`}}",
               "refId": "C"
             }

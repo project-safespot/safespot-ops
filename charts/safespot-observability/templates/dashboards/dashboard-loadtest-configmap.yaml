@@ -729,22 +729,22 @@ data:
           "description": "ELB 레벨: ALB 자체 오류 / Target 레벨: 백엔드 오류. Target 5xx 급증 시 application 장애.",
           "targets": [
             {
-              "expr": "rate(aws_applicationelb_httpcode_elb_4xx_count_sum[1m])",
+              "expr": "rate(aws_applicationelb_httpcode_elb_4_xx_count_sum[1m])",
               "legendFormat": "ELB 4xx/s",
               "refId": "A"
             },
             {
-              "expr": "rate(aws_applicationelb_httpcode_elb_5xx_count_sum[1m])",
+              "expr": "rate(aws_applicationelb_httpcode_elb_5_xx_count_sum[1m])",
               "legendFormat": "ELB 5xx/s",
               "refId": "B"
             },
             {
-              "expr": "rate(aws_applicationelb_httpcode_target_4xx_count_sum[1m])",
+              "expr": "rate(aws_applicationelb_httpcode_target_4_xx_count_sum[1m])",
               "legendFormat": "Target 4xx/s",
               "refId": "C"
             },
             {
-              "expr": "rate(aws_applicationelb_httpcode_target_5xx_count_sum[1m])",
+              "expr": "rate(aws_applicationelb_httpcode_target_5_xx_count_sum[1m])",
               "legendFormat": "Target 5xx/s",
               "refId": "D"
             }

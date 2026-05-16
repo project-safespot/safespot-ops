@@ -242,11 +242,11 @@ YACE가 `AWS/ApplicationELB` namespace에서 수집하는 메트릭과 Prometheu
 | `RequestCount` | Sum | `aws_applicationelb_request_count_sum` | ALB가 수신한 총 요청 수 (60s bucket) |
 | `TargetResponseTime` | Average | `aws_applicationelb_target_response_time_average` | ALB → Target 평균 응답 시간 (초) |
 | `TargetResponseTime` | Maximum | `aws_applicationelb_target_response_time_maximum` | ALB → Target 최대 응답 시간 (초) |
-| `HTTPCode_ELB_4XX_Count` | Sum | `aws_applicationelb_httpcode_elb_4xx_count_sum` | ALB 자체가 반환한 4xx 수 |
-| `HTTPCode_ELB_5XX_Count` | Sum | `aws_applicationelb_httpcode_elb_5xx_count_sum` | ALB 자체가 반환한 5xx 수 |
-| `HTTPCode_Target_2XX_Count` | Sum | `aws_applicationelb_httpcode_target_2xx_count_sum` | Target이 반환한 2xx 수 (TargetGroup 별) |
-| `HTTPCode_Target_4XX_Count` | Sum | `aws_applicationelb_httpcode_target_4xx_count_sum` | Target이 반환한 4xx 수 (TargetGroup 별) |
-| `HTTPCode_Target_5XX_Count` | Sum | `aws_applicationelb_httpcode_target_5xx_count_sum` | Target이 반환한 5xx 수 (TargetGroup 별) |
+| `HTTPCode_ELB_4XX_Count` | Sum | `aws_applicationelb_httpcode_elb_4_xx_count_sum` | ALB 자체가 반환한 4xx 수 |
+| `HTTPCode_ELB_5XX_Count` | Sum | `aws_applicationelb_httpcode_elb_5_xx_count_sum` | ALB 자체가 반환한 5xx 수 |
+| `HTTPCode_Target_2XX_Count` | Sum | `aws_applicationelb_httpcode_target_2_xx_count_sum` | Target이 반환한 2xx 수 (TargetGroup 별) |
+| `HTTPCode_Target_4XX_Count` | Sum | `aws_applicationelb_httpcode_target_4_xx_count_sum` | Target이 반환한 4xx 수 (TargetGroup 별) |
+| `HTTPCode_Target_5XX_Count` | Sum | `aws_applicationelb_httpcode_target_5_xx_count_sum` | Target이 반환한 5xx 수 (TargetGroup 별) |
 | `TargetConnectionErrorCount` | Sum | `aws_applicationelb_target_connection_error_count_sum` | Target 연결 실패 수 (TargetGroup 별) |
 | `RejectedConnectionCount` | Sum | `aws_applicationelb_rejected_connection_count_sum` | ALB가 거절한 연결 수 |
 | `ActiveConnectionCount` | Sum | `aws_applicationelb_active_connection_count_sum` | 현재 활성 TCP 연결 수 |
