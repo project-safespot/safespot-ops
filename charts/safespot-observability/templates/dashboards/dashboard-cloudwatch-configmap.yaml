@@ -294,10 +294,10 @@ data:
           "type": "timeseries",
           "gridPos": { "x": 0, "y": 38, "w": 12, "h": 6 },
           "datasource": "Prometheus",
-          "description": "ALB가 수신한 초당 요청 수. rate(RequestCount Sum[1m]). 메트릭 이름: aws_applicationelb_request_count_sum",
+          "description": "ALB가 수신한 초당 요청 수. YACE 60초 Sum 값을 60으로 나눠 TPS로 계산. 메트릭 이름: aws_applicationelb_request_count_sum",
           "targets": [
             {
-              "expr": "rate(aws_applicationelb_request_count_sum[1m])",
+              "expr": "sum(aws_applicationelb_request_count_sum) / 60",
               "legendFormat": "ALB TPS {{`{{ dimension_LoadBalancer }}`}}",
               "refId": "A"
             }

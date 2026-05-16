@@ -679,7 +679,7 @@ data:
           "description": "ALB가 수신한 TPS와 application이 처리한 TPS를 오버레이. 두 선의 괴리가 ALB→Application 구간 drop을 나타냄.",
           "targets": [
             {
-              "expr": "rate(aws_applicationelb_request_count_sum[1m])",
+              "expr": "sum(aws_applicationelb_request_count_sum) / 60",
               "legendFormat": "ALB Request TPS",
               "refId": "A"
             },
