@@ -273,7 +273,9 @@ yace:
         AWS/ElastiCache:
           - Name
         AWS/ApplicationELB:
-          - Name
+          - ingress.k8s.aws/stack
+          - elbv2.k8s.aws/cluster
+          - service.k8s.aws/stack
       jobs:
         - type: AWS/RDS
           regions:
@@ -373,8 +375,8 @@ yace:
           regions:
             - ${AWS_REGION}
           searchTags:
-            - key: Name
-              value: safespot-dev-alb
+            - key: ingress.k8s.aws/stack
+              value: safespot-dev-api
           metrics:
             - name: RequestCount
               statistics:
@@ -416,8 +418,8 @@ yace:
           regions:
             - ${AWS_REGION}
           searchTags:
-            - key: Name
-              value: safespot-dev-alb
+            - key: ingress.k8s.aws/stack
+              value: safespot-dev-api
           dimensionNameRequirements:
             - LoadBalancer
             - TargetGroup

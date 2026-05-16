@@ -701,6 +701,8 @@ yace:
           searchTags:
             - key: ingress.k8s.aws/stack
               value: safespot-dev-api
+          dimensionNameRequirements:
+            - LoadBalancer
           metrics:
             - name: RequestCount
               statistics:
