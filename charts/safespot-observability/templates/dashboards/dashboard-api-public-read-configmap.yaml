@@ -34,8 +34,8 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum by (uri) (rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",uri!~\"/actuator.*|UNKNOWN\"}[1m]))",
-              "legendFormat": "{{ "{{uri}}" }}"
+              "expr": "sum by (service, uri) (rate(http_server_requests_seconds_count{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",uri!~\"/actuator.*|UNKNOWN\"}[1m]))",
+              "legendFormat": "{{ "{{service}}" }} {{ "{{uri}}" }}"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "reqps" } }
@@ -48,16 +48,16 @@ data:
           "datasource": { "uid": "prometheus" },
           "targets": [
             {
-              "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",uri!~\"/actuator.*|UNKNOWN\"}[5m])))",
-              "legendFormat": "p50"
+              "expr": "histogram_quantile(0.50, sum by (service, le) (rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",uri!~\"/actuator.*|UNKNOWN\"}[5m])))",
+              "legendFormat": "p50 {{ "{{service}}" }}"
             },
             {
-              "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",uri!~\"/actuator.*|UNKNOWN\"}[5m])))",
-              "legendFormat": "p95"
+              "expr": "histogram_quantile(0.95, sum by (service, le) (rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",uri!~\"/actuator.*|UNKNOWN\"}[5m])))",
+              "legendFormat": "p95 {{ "{{service}}" }}"
             },
             {
-              "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\",service=\"api-public-read\",uri!~\"/actuator.*|UNKNOWN\"}[5m])))",
-              "legendFormat": "p99"
+              "expr": "histogram_quantile(0.99, sum by (service, le) (rate(http_server_requests_seconds_bucket{namespace=\"{{ .Values.safespot.namespace.application }}\",service=~\"api-public-read|api-public-read-surge\",uri!~\"/actuator.*|UNKNOWN\"}[5m])))",
+              "legendFormat": "p99 {{ "{{service}}" }}"
             }
           ],
           "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 } }

@@ -29,14 +29,14 @@ spec:
         - alert: CacheHitRatioLow
           expr: |
             (
-              sum(rate(api_read_cache_request_total{service="api-public-read", result="hit"}[5m]))
+              sum(rate(api_read_cache_request_total{service=~"api-public-read|api-public-read-surge", result="hit"}[5m]))
             /
-              sum(rate(api_read_cache_request_total{service="api-public-read"}[5m]))
+              sum(rate(api_read_cache_request_total{service=~"api-public-read|api-public-read-surge"}[5m]))
             ) < 0.7
           for: 3m
           labels:
             severity: warning
-            service: api-public-read
+            service: api-public-read-family
             env: {{ .Values.safespot.env }}
           annotations:
             summary: "Cache hit ratio 하락"
@@ -45,13 +45,13 @@ spec:
         - alert: RedisFallbackSpiking
           expr: |
             sum(rate(api_read_cache_fallback_total{
-              service="api-public-read",
+              service=~"api-public-read|api-public-read-surge",
               reason="redis_down"
             }[1m])) > 5
           for: 1m
           labels:
             severity: critical
-            service: api-public-read
+            service: api-public-read-family
             env: {{ .Values.safespot.env }}
           annotations:
             summary: "Redis down으로 인한 DB fallback 급증"
