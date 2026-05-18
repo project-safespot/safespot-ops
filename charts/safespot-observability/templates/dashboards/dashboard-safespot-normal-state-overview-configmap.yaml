@@ -1,0 +1,188 @@
+{{- if .Values.safespot.dashboards.safeSpotNormalStateOverview.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-safespot-normal-state-overview
+  namespace: {{ .Values.safespot.namespace.monitoring }}
+  labels:
+    grafana_dashboard: "1"
+    env: {{ .Values.safespot.env }}
+    region: {{ .Values.safespot.region }}
+data:
+  safespot-normal-state-overview.json: |
+    {
+      "uid": "safespot-normal-state-overview",
+      "title": "SafeSpot Normal State Overview",
+      "tags": ["safespot", "demo", "normal-state", "api-public-read"],
+      "timezone": "Asia/Seoul",
+      "schemaVersion": 36,
+      "refresh": "10s",
+      "time": { "from": "now-15m", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "namespace",
+            "type": "custom",
+            "query": "application",
+            "current": { "selected": true, "text": "application", "value": "application" }
+          },
+          {
+            "name": "base_service",
+            "type": "custom",
+            "query": "api-public-read",
+            "current": { "selected": true, "text": "api-public-read", "value": "api-public-read" }
+          },
+          {
+            "name": "surge_service",
+            "type": "custom",
+            "query": "api-public-read-surge",
+            "current": { "selected": true, "text": "api-public-read-surge", "value": "api-public-read-surge" }
+          },
+          {
+            "name": "surge_hpa",
+            "type": "custom",
+            "query": "api-public-read-surge",
+            "current": { "selected": true, "text": "api-public-read-surge", "value": "api-public-read-surge" }
+          },
+          {
+            "name": "surge_deployment",
+            "type": "custom",
+            "query": "api-public-read-surge",
+            "current": { "selected": true, "text": "api-public-read-surge", "value": "api-public-read-surge" }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "API RPS by Service",
+          "description": "Normal state should show base traffic dominance while surge stays nearly idle.",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (service) (rate(http_server_requests_seconds_count{namespace=\"$namespace\",service=~\"$base_service|$surge_service\",uri!~\"/actuator.*|UNKNOWN\"}[1m]))",
+              "legendFormat": "{{ "{{service}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 2,
+          "title": "Surge RPS vs HPA Target",
+          "description": "Surge traffic should remain well below the 450 RPS HPA target in normal operation.",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\",service=\"$surge_service\",uri!~\"/actuator.*|UNKNOWN\"}[1m]))",
+              "legendFormat": "surge current rps"
+            },
+            {
+              "expr": "vector(450)",
+              "legendFormat": "hpa target 450"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 450 },
+                  { "color": "red", "value": 600 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "Surge Available Replicas",
+          "description": "Surge deployment should stay at its minimum ready footprint.",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "kube_deployment_status_replicas_available{namespace=\"$namespace\",deployment=\"$surge_deployment\"}",
+              "legendFormat": "available replicas"
+            }
+          ],
+          "options": {
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          },
+          "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+        },
+        {
+          "id": 4,
+          "title": "HPA Current / Desired Replicas",
+          "description": "Current and desired replicas should stay flat in the baseline state.",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"$namespace\",horizontalpodautoscaler=\"$surge_hpa\"}",
+              "legendFormat": "current replicas"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"$namespace\",horizontalpodautoscaler=\"$surge_hpa\"}",
+              "legendFormat": "desired replicas"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+        },
+        {
+          "id": 5,
+          "title": "Node Count",
+          "description": "Baseline node count before any disaster surge scaling begins.",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "count(kube_node_info{cluster=\"safespot-dev-eks\"}) or count(kube_node_info)",
+              "legendFormat": "node count"
+            }
+          ],
+          "options": {
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value"
+          },
+          "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+        },
+        {
+          "id": 6,
+          "title": "API Pod CPU Usage",
+          "description": "Normal state should show low CPU usage across base and surge pods.",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"$namespace\",pod=~\"api-public-read.*\",container!=\"\",image!=\"\"}[1m]))",
+              "legendFormat": "{{ "{{pod}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "cores", "decimals": 3 } }
+        }
+      ]
+    }
+{{- end }}

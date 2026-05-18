@@ -1,0 +1,184 @@
+{{- if .Values.safespot.dashboards.safeSpotDisasterSurgeScalingOverview.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-safespot-disaster-surge-scaling-overview
+  namespace: {{ .Values.safespot.namespace.monitoring }}
+  labels:
+    grafana_dashboard: "1"
+    env: {{ .Values.safespot.env }}
+    region: {{ .Values.safespot.region }}
+data:
+  safespot-disaster-surge-scaling-overview.json: |
+    {
+      "uid": "safespot-disaster-surge-scaling-overview",
+      "title": "SafeSpot Disaster Surge Scaling Overview",
+      "tags": ["safespot", "demo", "disaster-surge", "autoscaling"],
+      "timezone": "Asia/Seoul",
+      "schemaVersion": 36,
+      "refresh": "10s",
+      "time": { "from": "now-30m", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "namespace",
+            "type": "custom",
+            "query": "application",
+            "current": { "selected": true, "text": "application", "value": "application" }
+          },
+          {
+            "name": "base_service",
+            "type": "custom",
+            "query": "api-public-read",
+            "current": { "selected": true, "text": "api-public-read", "value": "api-public-read" }
+          },
+          {
+            "name": "surge_service",
+            "type": "custom",
+            "query": "api-public-read-surge",
+            "current": { "selected": true, "text": "api-public-read-surge", "value": "api-public-read-surge" }
+          },
+          {
+            "name": "surge_hpa",
+            "type": "custom",
+            "query": "api-public-read-surge",
+            "current": { "selected": true, "text": "api-public-read-surge", "value": "api-public-read-surge" }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "RPS by Service",
+          "description": "After the simulator event, surge traffic should visibly ramp up beside base traffic.",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (service) (rate(http_server_requests_seconds_count{namespace=\"$namespace\",service=~\"$base_service|$surge_service\",uri!~\"/actuator.*|UNKNOWN\"}[1m]))",
+              "legendFormat": "{{ "{{service}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } }
+        },
+        {
+          "id": 2,
+          "title": "Surge RPS vs HPA Target",
+          "description": "Shows when surge request rate approaches or exceeds the 450 RPS target.",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\",service=\"$surge_service\",uri!~\"/actuator.*|UNKNOWN\"}[1m]))",
+              "legendFormat": "surge current rps"
+            },
+            {
+              "expr": "vector(450)",
+              "legendFormat": "target 450"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 450 },
+                  { "color": "red", "value": 600 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "p95 Latency by Service",
+          "description": "Tracks whether latency rises during the surge and stabilizes after scaling catches up.",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{namespace=\"$namespace\",service=~\"$base_service|$surge_service\",uri!~\"/actuator.*|UNKNOWN\"}[1m]))) * 1000",
+              "legendFormat": "{{ "{{service}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ms", "decimals": 0 } }
+        },
+        {
+          "id": 4,
+          "title": "HTTP 5xx Rate",
+          "description": "Presentation view for confirming low error rates during high traffic.",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{namespace=\"$namespace\",service=~\"$base_service|$surge_service\",status=~\"5..\",uri!~\"/actuator.*|UNKNOWN\"}[1m]))",
+              "legendFormat": "{{ "{{service}}" }} {{ "{{status}}" }}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 3 } }
+        },
+        {
+          "id": 5,
+          "title": "HPA Current / Desired Replicas",
+          "description": "Shows HPA response after surge traffic and routing changes.",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"$namespace\",horizontalpodautoscaler=\"$surge_hpa\"}",
+              "legendFormat": "current replicas"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"$namespace\",horizontalpodautoscaler=\"$surge_hpa\"}",
+              "legendFormat": "desired replicas"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+        },
+        {
+          "id": 6,
+          "title": "Node Count",
+          "description": "Highlights cluster-level scaling after the surge propagates to pod scheduling pressure.",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+          "datasource": { "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "count(kube_node_info{cluster=\"safespot-dev-eks\"}) or count(kube_node_info)",
+              "legendFormat": "node count"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } }
+        }
+      ],
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          },
+          {
+            "datasource": { "uid": "prometheus" },
+            "enable": true,
+            "expr": "changes(kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"$namespace\",horizontalpodautoscaler=\"$surge_hpa\"}[1m]) > 0",
+            "iconColor": "rgba(255, 96, 96, 1)",
+            "name": "HPA Desired Replica Change",
+            "textFormat": "api-public-read-surge desired replicas changed",
+            "titleFormat": "HPA desired replicas changed"
+          }
+        ]
+      }
+    }
+{{- end }}

@@ -95,6 +95,10 @@ safespot:
       enabled: false
     loadtest:
       enabled: false
+    safeSpotNormalStateOverview:
+      enabled: false
+    safeSpotDisasterSurgeScalingOverview:
+      enabled: false
 
   # PrometheusRule enable/disable flags
   prometheusRules:
