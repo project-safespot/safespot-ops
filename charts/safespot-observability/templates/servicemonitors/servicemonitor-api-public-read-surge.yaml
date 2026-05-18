@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: api-public-read-surge
+  namespace: {{ .Values.safespot.namespace.monitoring }}
+  labels:
+    release: kube-prometheus-stack
+    app: api-public-read-surge
+    env: {{ .Values.safespot.env }}
+    region: {{ .Values.safespot.region }}
+spec:
+  selector:
+    matchLabels:
+      service: api-public-read-surge
+      env: {{ .Values.safespot.env }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.safespot.namespace.application }}
+  endpoints:
+    - port: {{ .Values.safespot.metrics.apiPublicRead.port }}
+      path: {{ .Values.safespot.metrics.apiPublicRead.path }}
+      interval: {{ .Values.safespot.metrics.apiPublicRead.interval }}

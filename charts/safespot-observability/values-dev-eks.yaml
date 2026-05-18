@@ -446,7 +446,7 @@ prometheus-adapter:
     default: false
 
     external:
-      - seriesQuery: 'http_server_requests_seconds_count{namespace="application",service="api-public-read"}'
+      - seriesQuery: 'http_server_requests_seconds_count{namespace!="",service!=""}'
 
         resources:
           overrides:
@@ -454,14 +454,14 @@ prometheus-adapter:
               resource: namespace
 
         name:
-          as: "api_public_read_requests_per_second"
+          as: "http_request_per_second"
 
         metricsQuery: >
           sum(
             rate(
               http_server_requests_seconds_count{
-                namespace="application",
-                service="api-public-read"
+                <<.LabelMatchers>>,
+                uri!~"/actuator.*|UNKNOWN"
               }[1m]
             )
           )
